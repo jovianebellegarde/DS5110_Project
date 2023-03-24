@@ -1,1 +1,77 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
+```{r}
+library(tibble)
+library(dplyr)
+library(dtplyr)
+library(tidyr)
+
+data1 <- read.csv("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv")
+data2 <- read.csv("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", 
+                    stringsAsFactors=FALSE, header=T,nrow=10000, 
+                    comment.char="") 
+
+tibble(data1)
+tibble(data2)
+
+
+data1_counts <- data1 %>%
+  select(mrace6) %>%
+  count(mrace6) %>%
+  rename(num_counts = n) %>%
+  group_by(mrace6)
+
+data1_counts
+
+data2_counts <- data2 %>%
+  select(mrace6) %>%
+  count(mrace6) %>%
+  rename(denom_counts = n) %>%
+  group_by(mrace6)
+
+data2_counts
+
+data <- cbind.data.frame(data1_counts, data2_counts$denom_counts) %>%
+  mutate(proportion = (num_counts/data2_counts$denom_counts)*1000)
+
+data
+data1$
+
+x =data1$brthwgt 
+d
+s <- data2$co_seqnum
+s <- na.omit(s)
+s
+```
+```{r}
+library(ggplot2)
+
+ggplot(data, aes(fill=mrace6, y=proportion, x=mrace6)) + 
+    geom_bar(stat = "identity")+ theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  labs(title="Race Distribution for Trans People (Weighted & Unweighted)")
+
+```
+
+Does Race affect Infant Mortality Rate ?
+
+- H0: there is no relationship between Race and IMR
+
+- H1: there is a relationship between Race and IMR
+
+```{r}
+datatest <- data1 %>%
+  #filter(cut %in% c("Fair", "Ideal")) %>%
+  transmute(co_seqnum, co_dodyy)
+
+datatest <- na.omit(datatest)
+datatest
+data2$co_dodyy
+diamonds2class
+typeof(data1$co_seqnum)
+typeof(data2$co_seqnum)
+              
+g <- inner_join()
+g
+```
