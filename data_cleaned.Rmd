@@ -7,15 +7,14 @@ library(tibble)
 library(dplyr)
 library(dtplyr)
 library(tidyr)
+library(data.table)
 
-data1 <- read.csv("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv")
-data2 <- read.csv("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", 
-                    stringsAsFactors=FALSE, header=T,nrow=10000, 
-                    comment.char="") 
+data1 <- fread("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv", select=c('mrace6'))
+data2 <- fread("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", select=c('mrace6'))
 
 tibble(data1)
 tibble(data2)
-
+data1
 
 data1_counts <- data1 %>%
   select(mrace6) %>%
@@ -23,7 +22,7 @@ data1_counts <- data1 %>%
   rename(num_counts = n) %>%
   group_by(mrace6)
 
-data1_counts
+data1_counts <- data.frame(data1_counts)
 
 data2_counts <- data2 %>%
   select(mrace6) %>%
@@ -31,19 +30,12 @@ data2_counts <- data2 %>%
   rename(denom_counts = n) %>%
   group_by(mrace6)
 
-data2_counts
+data2_counts <- data.frame(data2_counts)
 
-data <- cbind.data.frame(data1_counts, data2_counts$denom_counts) %>%
+data <- cbind.data.frame(data1_counts, data2_counts$denom_counts)%>%
   mutate(proportion = (num_counts/data2_counts$denom_counts)*1000)
 
 data
-data1$
-
-x =data1$brthwgt 
-d
-s <- data2$co_seqnum
-s <- na.omit(s)
-s
 ```
 ```{r}
 library(ggplot2)
