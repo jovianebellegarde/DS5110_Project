@@ -9,31 +9,32 @@ library(dtplyr)
 library(tidyr)
 library(data.table)
 
-data1 <- fread("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv", select=c('mrace6'))
-data2 <- fread("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", select=c('mrace6'))
+# Reading the data into DFs 
+numerator_data <- fread("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv", select=c('mrace6'))
+denom_data <- fread("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", select=c('mrace6'))
 
-tibble(data1)
-tibble(data2)
-data1
+tibble(numerator_data)
+tibble(denom_data)
+numerator_data
 
-data1_counts <- data1 %>%
+numerator_counts <- numerator_data %>%
   select(mrace6) %>%
   count(mrace6) %>%
   rename(num_counts = n) %>%
   group_by(mrace6)
 
-data1_counts <- data.frame(data1_counts)
+numerator_counts <- data.frame(numerator_counts)
 
-data2_counts <- data2 %>%
+denom_counts <- denom_data %>%
   select(mrace6) %>%
   count(mrace6) %>%
   rename(denom_counts = n) %>%
   group_by(mrace6)
 
-data2_counts <- data.frame(data2_counts)
+denom_counts <- data.frame(denom_counts)
 
-data <- cbind.data.frame(data1_counts, data2_counts$denom_counts)%>%
-  mutate(proportion = (num_counts/data2_counts$denom_counts)*1000)
+data <- cbind.data.frame(numerator_counts, denom_counts$denom_counts)%>%
+  mutate(proportion = (num_counts/denom_counts$denom_counts)*1000)
 
 data
 ```
