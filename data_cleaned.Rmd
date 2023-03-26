@@ -8,14 +8,69 @@ library(dplyr)
 library(dtplyr)
 library(tidyr)
 library(data.table)
+library(naniar)
 
 # Reading the data into DFs 
-numerator_data <- fread("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv", select=c('mrace6'))
-denom_data <- fread("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", select=c('mrace6'))
+
+# Numerator File: 
+#include deaths to all infants in that same calendar year for which the 
+#death certificate can be linked to a birth certificate in the denominator file.
+
+#Graziano path
+#numerator_data <- fread("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv", select=c('mrace6'))
+#denom_data <- fread("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", select=c('mrace6'))
+
+
+#Denominator File: 
+#contains all births occurring in a given calendar year.
+
+
+# Reading in the data into a tibble
+# Creating unique key to enable a join
+numerator_data <- fread("link2020usnum.csv", 
+                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain'))
+
+numerator_data <- numerator_data %>% arrange(desc(brthwgt)) 
+numerator_data <- numerator_data %>% replace_with_na_all(condition = ~.x == 9999) 
+numerator_data <- numerator_data %>% na.omit()
+
+numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
+                                            numerator_data$dob_tt,
+                                            numerator_data$bfacil,
+                                            numerator_data$pwgt_r,
+                                            numerator_data$wtgain,
+                                            sep = '-'))
+
+numerator_data <- distinct(numerator_data)
+
+
+
+# Denominator File
+# replace_with_na_all is creating a hang up. 
+# TBD to replace NAs in a more efficient manner
+denom_data <- fread("link2020usden.csv", select=c('brthwgt','dob_tt',
+                                                  'bfacil','pwgt_r', 'wtgain'))
+
+denom_data <- denom_data %>% arrange(desc(brthwgt)) 
+denom_data <- denom_data %>% replace_with_na_all(condition = ~.x == 9999) 
+denom_data <- denom_data %>% na.omit()
+
+denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
+                                            denom_data$dob_tt,
+                                            denom_data$bfacil,
+                                            denom_data$pwgt_r,
+                                            denom_data$wtgain,
+                                            sep = '-'))
+
+#Next Steps: 
+  # Ensure that denominator file can be joined with the numerator file
+  # Combine the files. 
+
+#---------------------------------------------------------------------------#
 
 tibble(numerator_data)
 tibble(denom_data)
-numerator_data
+#numerator_data
 
 numerator_counts <- numerator_data %>%
   select(mrace6) %>%
@@ -33,11 +88,14 @@ denom_counts <- denom_data %>%
 
 denom_counts <- data.frame(denom_counts)
 
-data <- cbind.data.frame(numerator_counts, denom_counts$denom_counts)%>%
+combined_data <- cbind.data.frame(numerator_counts, denom_counts$denom_counts)%>%
   mutate(proportion = (num_counts/denom_counts$denom_counts)*1000)
 
-data
+combined_data
 ```
+
+
+
 ```{r}
 library(ggplot2)
 
