@@ -25,13 +25,19 @@ library(naniar)
 #contains all births occurring in a given calendar year.
 
 
-# Reading in the data into a tibble
-# Creating unique key to enable a join
+# Numerator File
+# Tidy Process
+  # Read in the data
+  # Arrange birthweight in desc order
+  # Replace all 9999 values in birthweight and DOB Time with NAs and omit
+  # Create unique key from birthweight, DOB time, facility type, pre-pregnancy     weight, weight gain 
+  # Remove duplicate keys 
 numerator_data <- fread("link2020usnum.csv", 
-                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain'))
+                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain')) %>% arrange(desc(brthwgt)) 
 
-numerator_data <- numerator_data %>% arrange(desc(brthwgt)) 
-numerator_data <- numerator_data %>% replace_with_na_all(condition = ~.x == 9999) 
+numerator_data$brthwgt <- replace(numerator_data$brthwgt, numerator_data$brthwgt == 9999, NA)
+
+numerator_data$dob_tt <- replace(numerator_data$dob_tt, numerator_data$dob_tt == 9999, NA)
 numerator_data <- numerator_data %>% na.omit()
 
 numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
@@ -46,13 +52,16 @@ numerator_data <- distinct(numerator_data)
 
 
 # Denominator File
-# replace_with_na_all is creating a hang up. 
-# TBD to replace NAs in a more efficient manner
+
+# Tidy Process
+
 denom_data <- fread("link2020usden.csv", select=c('brthwgt','dob_tt',
                                                   'bfacil','pwgt_r', 'wtgain'))
 
 denom_data <- denom_data %>% arrange(desc(brthwgt)) 
-denom_data <- denom_data %>% replace_with_na_all(condition = ~.x == 9999) 
+denom_data$brthwgt <- replace(denom_data$brthwgt, denom_data$brthwgt == 9999, NA)
+
+denom_data$dob_tt <- replace(denom_data$dob_tt, denom_data$dob_tt == 9999, NA) 
 denom_data <- denom_data %>% na.omit()
 
 denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
@@ -61,10 +70,10 @@ denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
                                             denom_data$pwgt_r,
                                             denom_data$wtgain,
                                             sep = '-'))
+denom_data <- distinct(denom_data)
 
 #Next Steps: 
-  # Ensure that denominator file can be joined with the numerator file
-  # Combine the files. 
+  # Join the two data sets 
 
 #---------------------------------------------------------------------------#
 
