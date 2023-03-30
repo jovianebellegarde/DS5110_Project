@@ -33,7 +33,9 @@ library(naniar)
   # Create unique key from birthweight, DOB time, facility type, pre-pregnancy     weight, weight gain 
   # Remove duplicate keys 
 numerator_data <- fread("link2020usnum.csv", 
-                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain')) %>% arrange(desc(brthwgt)) 
+                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain')) %>% arrange(desc(brthwgt))
+
+numerator_data <- data.frame(numerator_data)
 
 numerator_data$brthwgt <- replace(numerator_data$brthwgt, numerator_data$brthwgt == 9999, NA)
 
@@ -72,8 +74,19 @@ denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
                                             sep = '-'))
 denom_data <- distinct(denom_data)
 
-#Next Steps: 
-  # Join the two data sets 
+
+# Creating the mortality indicator column 
+# create a new column in the births dataframe to indicate mortality status
+denom_data$mortality_status <- 0
+
+
+# join the two dataframes based on the primary key column
+merged_df <- left_join(denom_data, numerator_data, by = "key")
+
+
+# update the mortality status column based on whether or not a match was found
+merged_df$mortality_status[!is.na(merged_df$brthwgt.y)] <- 1
+
 
 #---------------------------------------------------------------------------#
 
