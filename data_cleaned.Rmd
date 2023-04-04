@@ -72,14 +72,15 @@ merged_df$mortality_status[!is.na(merged_df$brthwgt.y)] <- 1
 ```{r}
 library(tibble)
 # Removing columns that created the key
-births <- denom_data %>% select(-c('brthwgt','dob_tt',
-                                                  'bfacil',
-                                                 'pwgt_r', 'wtgain'))
+births <- merged_df %>% select(-c('brthwgt.x','brthwgt.y', 'dob_tt.x','dob_tt.y',
+                                                  'bfacil.x','bfacil.y', 
+                                                 'pwgt_r.x', 'pwgt_r.y','wtgain.x', 
+                                                 'wtgain.y'))
 # Next steps: 
   # Convert the Y/N in risk columns to 0 and 1's
   # Sum up all the fisk factor columns for risk score
   # Create risk level column and create category (Low, Medium, High) based on score
-imputed_rf <- births %>% 
+imputed_rf <- merged_df %>% 
   mutate_at("ilive", ~str_replace(.,"N", "0")) %>%
   mutate_at("ilive", ~str_replace(.,"Y", "1")) %>%
   mutate_at(vars(contains("rf_")), ~str_replace(.,"N", "0")) %>%
