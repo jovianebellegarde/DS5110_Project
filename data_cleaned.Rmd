@@ -1,7 +1,7 @@
 ---
-title: "project_pseudo_markdown"
+title: "5110 project"
 author: "Lesrene Browne"
-date: "2023-03-23"
+date: "2023-04-02"
 output: pdf_document
 ---
 
@@ -12,38 +12,145 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tibble)
 library(dplyr)
+library(dtplyr)
 library(tidyr)
-#data1 <- read.csv("/Users/lesrene/Downloads/link2020usnum.csv")
-#data2 <- read.csv("/Users/lesrene/Downloads/link2020usden.csv")
-#tibble(data1)
-#tibble(data2)
+library(data.table)
+library(naniar)
+# Reading the data into DFs 
+# Numerator File: 
+#include deaths to all infants in that same calendar year for which the 
+#death certificate can be linked to a birth certificate in the denominator file.
+#Graziano path
+#numerator_data <- fread("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv", select=c('mrace6'))
+#denom_data <- fread("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", select=c('mrace6'))
+#Denominator File: 
+#contains all births occurring in a given calendar year.
+# Numerator File
+# Tidy Process
+  # Read in the data
+  # Arrange birthweight in desc order
+  # Replace all 9999 values in birthweight and DOB Time with NAs and omit
+  # Create unique key from birthweight, DOB time, facility type, pre-pregnancy weight, weight gain 
+  # Remove duplicate keys 
+# Generating Key
+numerator_data <- fread("/Users/lesrene/Downloads/link2020usnum.csv", 
+                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain')) %>% arrange(desc(brthwgt))
+numerator_data <- data.frame(numerator_data)
+numerator_data$brthwgt <- replace(numerator_data$brthwgt, numerator_data$brthwgt == 9999, NA)
+numerator_data$dob_tt <- replace(numerator_data$dob_tt, numerator_data$dob_tt == 9999, NA)
+numerator_data <- numerator_data %>% na.omit()
+numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
+                                            numerator_data$dob_tt,
+                                            numerator_data$bfacil,
+                                            numerator_data$pwgt_r,
+                                            numerator_data$wtgain,
+                                            sep = '-'))
+numerator_data <- distinct(numerator_data)
+# Denominator File
+denom_data <- fread("/Users/lesrene/Downloads/link2020usden.csv",select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain','mrace6','ilive','meduc','bfacil3','rf_pdiab','rf_gdiab','rf_phype','rf_ghype','rf_ehype','rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar','no_risks'))
+denom_data <- data.frame(denom_data)
+denom_data <- denom_data %>% arrange(desc(brthwgt)) 
+denom_data$brthwgt <- replace(denom_data$brthwgt, denom_data$brthwgt == 9999, NA)
+denom_data$dob_tt <- replace(denom_data$dob_tt, denom_data$dob_tt == 9999, NA) 
+denom_data <- denom_data %>% na.omit()
+denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
+                                            denom_data$dob_tt,
+                                            denom_data$bfacil,
+                                            denom_data$pwgt_r,
+                                            denom_data$wtgain,
+                                            sep = '-'))
+denom_data <- distinct(denom_data)
+# Creating the mortality indicator column 
+# create a new column in the births dataframe to indicate mortality status
+denom_data$mortality_status <- 0
+# join the two dataframes based on the primary key column
+merged_df <- left_join(denom_data, numerator_data, by = "key")
+# update the mortality status column based on whether or not a match was found
+merged_df$mortality_status[!is.na(merged_df$brthwgt.y)] <- 1
+```
 
-data1_counts <- data1 %>%
+```{r}
+library(tibble)
+# Removing columns that created the key
+births <- denom_data %>% select(-c('brthwgt','dob_tt',
+                                                  'bfacil',
+                                                 'pwgt_r', 'wtgain'))
+# Next steps: 
+  # Convert the Y/N in risk columns to 0 and 1's
+  # Sum up all the fisk factor columns for risk score
+  # Create risk level column and create category (Low, Medium, High) based on score
+imputed_rf <- births %>% 
+  mutate_at("ilive", ~str_replace(.,"N", "0")) %>%
+  mutate_at("ilive", ~str_replace(.,"Y", "1")) %>%
+  mutate_at(vars(contains("rf_")), ~str_replace(.,"N", "0")) %>%
+  mutate_at(vars(contains("rf_")), ~str_replace(.,"Y", "1")) %>%
+  mutate_at(vars(contains("rf_")), ~str_replace(.,"X", "0")) %>%
+  mutate_at(vars(contains("rf_")), ~str_replace(.,"U", "0")) %>%
+  mutate_at(vars(contains("rf_")), ~as.numeric(as.character(.))) %>%
+  mutate(sumrf = rowSums(select(., contains("rf_")))) %>%
+  mutate(risk_level = ifelse(sumrf %in% 0:5, "Low", ifelse(sumrf %in% 6:11, "Medium",
+                      ifelse(sumrf %in% 12:17, "High", NA))))
+
+
+tibble(imputed_rf)
+```
+
+# Step 1: Calculate the risk level based on columns 313-331
+# Step 2: Create 3 categories based on risk level number: no/low risk, medium risk, high risk
+Scale: 0 - 10
+        Low: Scores from 0 to 5
+        Medium: Scores from 6 to 11
+        High: Scores from 12 to 17
+# Step 3: Use this variable to see if it will make the model better fit 
+
+```{r}
+# Visualization 
+tibble(numerator_data)
+tibble(denom_data)
+#numerator_data
+numerator_counts <- numerator_data %>%
   select(mrace6) %>%
   count(mrace6) %>%
   rename(num_counts = n) %>%
   group_by(mrace6)
-
-data1_counts
-
-data2_counts <- data2 %>%
+numerator_counts <- data.frame(numerator_counts)
+denom_counts <- denom_data %>%
   select(mrace6) %>%
   count(mrace6) %>%
   rename(denom_counts = n) %>%
   group_by(mrace6)
-
-data2_counts
-
-data <- cbind.data.frame(data1_counts, data2_counts$denom_counts) %>%
-  mutate(proportion = (num_counts/data2_counts$denom_counts)*1000)
-
-data
+denom_counts <- data.frame(denom_counts)
+combined_data <- cbind.data.frame(numerator_counts, denom_counts$denom_counts)%>%
+  mutate(proportion = (num_counts/denom_counts$denom_counts)*1000)
+combined_data
 ```
+
+
+
 ```{r}
 library(ggplot2)
-
 ggplot(data, aes(fill=mrace6, y=proportion, x=mrace6)) + 
     geom_bar(stat = "identity")+ theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Race Distribution for Trans People (Weighted & Unweighted)")
+```
 
+Does Race affect Infant Mortality Rate ?
+
+- H0: there is no relationship between Race and IMR
+
+- H1: there is a relationship between Race and IMR
+
+```{r}
+datatest <- data1 %>%
+  #filter(cut %in% c("Fair", "Ideal")) %>%
+  transmute(co_seqnum, co_dodyy)
+datatest <- na.omit(datatest)
+datatest
+data2$co_dodyy
+diamonds2class
+typeof(data1$co_seqnum)
+typeof(data2$co_seqnum)
+              
+g <- inner_join()
+g
 ```
