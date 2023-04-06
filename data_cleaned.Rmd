@@ -34,7 +34,7 @@ library(naniar)
   # Remove duplicate keys 
 # Generating Key
 numerator_data <- fread("/Users/lesrene/Downloads/link2020usnum.csv", 
-                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain')) %>% arrange(desc(brthwgt))
+                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain', 'dob_yy', 'dob_mm','dob_wk')) %>% arrange(desc(brthwgt))
 numerator_data <- data.frame(numerator_data)
 numerator_data$brthwgt <- replace(numerator_data$brthwgt, numerator_data$brthwgt == 9999, NA)
 numerator_data$dob_tt <- replace(numerator_data$dob_tt, numerator_data$dob_tt == 9999, NA)
@@ -44,10 +44,13 @@ numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
                                             numerator_data$bfacil,
                                             numerator_data$pwgt_r,
                                             numerator_data$wtgain,
+                                            numerator_data$dob_yy,
+                                            numerator_data$dob_mm,
+                                            numerator_data$dob_wk,
                                             sep = '-'))
 numerator_data <- distinct(numerator_data)
 # Denominator File
-denom_data <- fread("/Users/lesrene/Downloads/link2020usden.csv",select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain','mrace6','ilive','meduc','bfacil3','rf_pdiab','rf_gdiab','rf_phype','rf_ghype','rf_ehype','rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar','no_risks'))
+denom_data <- fread("/Users/lesrene/Downloads/link2020usden.csv",select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain','mrace6','ilive','meduc','bfacil3','rf_pdiab','rf_gdiab','rf_phype','rf_ghype','rf_ehype','rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar','no_risks', 'mager9', 'dob_yy', 'dob_mm','dob_wk'))
 denom_data <- data.frame(denom_data)
 denom_data <- denom_data %>% arrange(desc(brthwgt)) 
 denom_data$brthwgt <- replace(denom_data$brthwgt, denom_data$brthwgt == 9999, NA)
@@ -58,6 +61,9 @@ denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
                                             denom_data$bfacil,
                                             denom_data$pwgt_r,
                                             denom_data$wtgain,
+                                            denom_data$dob_yy,
+                                            denom_data$dob_mm,
+                                            denom_data$dob_wk,
                                             sep = '-'))
 denom_data <- distinct(denom_data)
 # Creating the mortality indicator column 
@@ -68,6 +74,16 @@ merged_df <- left_join(denom_data, numerator_data, by = "key")
 # update the mortality status column based on whether or not a match was found
 merged_df$mortality_status[!is.na(merged_df$brthwgt.y)] <- 1
 ```
+
+
+# Step 1: Calculate the risk level based on columns 313-331
+# Step 2: Create 3 categories based on risk level number: no/low risk, medium risk, high risk
+Scale: 0 - 10
+        Low: Scores from 0 to 5
+        Medium: Scores from 6 to 11
+        High: Scores from 12 to 17
+# Step 3: Use this variable to see if it will make the model better fit 
+
 
 ```{r}
 library(tibble)
@@ -95,14 +111,113 @@ imputed_rf <- merged_df %>%
 
 tibble(imputed_rf)
 ```
+```{r}
+# fit the logistic regression model
+model_simple <- glm(mortality_status ~ mrace6, data = imputed_rf, family = binomial)
 
-# Step 1: Calculate the risk level based on columns 313-331
-# Step 2: Create 3 categories based on risk level number: no/low risk, medium risk, high risk
-Scale: 0 - 10
-        Low: Scores from 0 to 5
-        Medium: Scores from 6 to 11
-        High: Scores from 12 to 17
-# Step 3: Use this variable to see if it will make the model better fit 
+summary(model_simple)
+```
+
+
+```{r}
+# fit the logistic regression model
+model <- glm(mortality_status ~ mrace6 + mager9 + meduc + sumrf, data = imputed_rf, family = binomial)
+
+summary(model)
+```
+
+
+```{r}
+# may end up needing to weight data  by race after all but luckily there's infant mortality rates documented by race in the documentation maybe we can use those to weight 
+
+# The infant mortality rates based on the documentation for maternal race:
+# Overall = 5.51
+# Non-Hispanic White = 4.45
+# Non-Hispanic Black = 10.6
+# Non-Hispanic American Indian or Alaska Native = 7.63
+# Non-Hispanic Asian = 3.25
+# Non-Hispanic Native Hawaiian or Other Pacific Islander = 7.68
+# Hispanic = 4.87
+
+```
+
+```{r}
+data_race <- imputed_rf
+data_race$mrace6 <- 1
+fitted_probs <- predict(model, newdata = data_race, type = "response")
+sim_outcome_1 <- rbinom(n = nrow(data_race), size = 1, prob = fitted_probs)
+
+data_race$mrace6 <- 2
+fitted_probs <- predict(model, newdata = data_race, type = "response")
+sim_outcome_2 <- rbinom(n = nrow(data_race), size = 1, prob = fitted_probs)
+
+# perform t-test
+p_val <- t.test(sim_outcome_2, sim_outcome_1)$p.value
+
+p_val
+
+```
+
+```{r}
+# set up the range of values to vary
+#race_values <- unique(imputed_rf$mrace6)
+
+race_values <- seq(from = 1, to = 6, by = 1)
+
+# create function to simulate outcome data based on varying maternal race values
+# got this function w/ help from chatgpt
+sim_outcome <- function(data, maternal_race) {
+  data$maternal_race <- maternal_race
+  fitted_probs <- predict(model, newdata = data, type = "response")
+  sim_outcome <- rbinom(n = nrow(data), size = 1, prob = fitted_probs)
+  return(sim_outcome)
+}
+
+# simulate outcome data for varying maternal race values
+sim_data <- lapply(race_values, function(mr) sim_outcome(imputed_rf, mr))
+sim_data <- do.call(cbind, sim_data)
+
+# calculate odds ratios for each simulated dataset
+odds_ratios <- apply(sim_data, 2, function(x) {
+  model_sim <- glm(x ~ mrace6 + mager9 + meduc + sumrf, data = imputed_rf, family = binomial)
+  exp(coef(model_sim)["mrace6"])
+})
+
+
+# plot odds ratios as a function of maternal race
+plot(race_values, odds_ratios, type = "l", xlab = "Maternal Race", ylab = "Odds Ratio")
+```
+
+
+```{r}
+
+# create empty vectors to store odds ratios and p-values for each race group
+p_values <- c(0, 0, 0, 0, 0, 0)
+
+# loop through each maternal race group
+for(i in 1:length(race_values)) {
+  
+  # calculate p-value for current race group
+  model_race <- glm(mortality_status ~ mrace6 + mager9 + meduc + sumrf, data = data_subset, family = binomial)
+  p_value_i <- summary(model_race)$coef[2,4]
+  
+  # store results for current race group in vectors
+  odds_ratios[i] <- median(odds_ratios_i)
+  p_values[i] <- p_value_i
+}
+```
+
+
+```{r}
+p_values
+
+# plot p-values for each maternal race group
+barplot(p_values, names.arg = race_values, ylab = "p-value")
+abline(h = 0.05, lty = 2)
+
+```
+
+
 
 ```{r}
 # Visualization 
