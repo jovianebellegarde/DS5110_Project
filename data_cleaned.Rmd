@@ -16,6 +16,8 @@ library(dtplyr)
 library(tidyr)
 library(data.table)
 library(naniar)
+library(broom)
+library(modelr)
 # Reading the data into DFs 
 # Numerator File: 
 #include deaths to all infants in that same calendar year for which the 
@@ -33,8 +35,8 @@ library(naniar)
   # Create unique key from birthweight, DOB time, facility type, pre-pregnancy weight, weight gain 
   # Remove duplicate keys 
 # Generating Key
-numerator_data <- fread("/Users/lesrene/Downloads/link2020usnum.csv", 
-                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain', 'dob_yy', 'dob_mm','dob_wk')) %>% arrange(desc(brthwgt))
+numerator_data <- fread("./link2020usnum.csv", 
+                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain', 'dob_yy', 'dob_mm','dob_wk', 'sex')) %>% arrange(desc(brthwgt))
 numerator_data <- data.frame(numerator_data)
 numerator_data$brthwgt <- replace(numerator_data$brthwgt, numerator_data$brthwgt == 9999, NA)
 numerator_data$dob_tt <- replace(numerator_data$dob_tt, numerator_data$dob_tt == 9999, NA)
@@ -50,7 +52,7 @@ numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
                                             sep = '-'))
 numerator_data <- distinct(numerator_data)
 # Denominator File
-denom_data <- fread("/Users/lesrene/Downloads/link2020usden.csv",select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain','mrace6','ilive','meduc','bfacil3','rf_pdiab','rf_gdiab','rf_phype','rf_ghype','rf_ehype','rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar','no_risks', 'mager9', 'dob_yy', 'dob_mm','dob_wk'))
+denom_data <- fread("./link2020usden.csv",select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain','mrace6','ilive','meduc','bfacil3','rf_pdiab','rf_gdiab','rf_phype','rf_ghype','rf_ehype','rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar','no_risks', 'mager9', 'dob_yy', 'dob_mm','dob_wk', 'sex'))
 denom_data <- data.frame(denom_data)
 denom_data <- denom_data %>% arrange(desc(brthwgt)) 
 denom_data$brthwgt <- replace(denom_data$brthwgt, denom_data$brthwgt == 9999, NA)
@@ -87,6 +89,7 @@ Scale: 0 - 10
 
 ```{r}
 library(tibble)
+library(stringr)
 # Removing columns that created the key
 births <- merged_df %>% select(-c('brthwgt.x','brthwgt.y', 'dob_tt.x','dob_tt.y',
                                                   'bfacil.x','bfacil.y', 
@@ -105,6 +108,8 @@ imputed_rf <- merged_df %>%
   mutate_at(vars(contains("rf_")), ~str_replace(.,"U", "0")) %>%
   mutate_at(vars(contains("rf_")), ~as.numeric(as.character(.))) %>%
   mutate(sumrf = rowSums(select(., contains("rf_")))) %>%
+  mutate(risk_level_cat = ifelse(sumrf %in% 0:5, 1, ifelse(sumrf %in% 6:11, 2,
+                                                           ifelse(sumrf %in% 12:17, 3, NA)))) %>%
   mutate(risk_level = ifelse(sumrf %in% 0:5, "Low", ifelse(sumrf %in% 6:11, "Medium",
                       ifelse(sumrf %in% 12:17, "High", NA))))
 
@@ -117,6 +122,68 @@ model_simple <- glm(mortality_status ~ mrace6, data = imputed_rf, family = binom
 
 summary(model_simple)
 ```
+
+
+
+
+
+
+```{r}
+set.seed(2)
+merged_part <- resample_partition(merged_df,
+                                    p=c(train=0.6,
+                                        valid=0.2,
+                                        test=0.2))
+
+merged_part
+```
+
+```{r}
+step1 <- function(response, predictors, candidates, partition)
+{
+  rhs <- paste0(paste0(predictors, collapse="+"), "+", candidates)
+  formulas <- lapply(paste0(response, "~", rhs), as.formula)
+  rmses <- sapply(formulas,
+                  function(fm) rmse(glm(fm, data=partition$train),
+                                    data=partition$valid), family = "binomial")
+  names(rmses) <- candidates
+  attr(rmses, "best") <- rmses[which.min(rmses)]
+  rmses
+}
+```
+
+Let's initialize a variable for tracking out model.
+
+```{r}
+model <- NULL
+```
+
+Step 1 (no variables):
+
+```{r}
+preds <- "1"
+cands <- c("mrace6", "cut", "color", "clarity",
+          "x", "y", "z", "depth", "table")
+s1 <- step1("log10(price)", preds, cands, merged_df)
+
+model <- c(model, attr(s1, "best"))
+s1
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ```{r}
