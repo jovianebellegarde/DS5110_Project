@@ -116,6 +116,7 @@ imputed_rf <- merged_df %>%
 
 tibble(imputed_rf)
 ```
+
 ```{r}
 # fit the logistic regression model
 model_simple <- glm(mortality_status ~ mrace6, data = imputed_rf, family = binomial)
@@ -137,6 +138,7 @@ imputed_partition <- resample_partition(imputed_rf,
 imputed_partition
 ```
 
+# RMSE approach (will not work for logistic regression model)
 ```{r}
 # step1 <- function(response, predictors, candidates, partition)
 # {
@@ -151,7 +153,7 @@ imputed_partition
 # }
 ```
 
-
+# Log-likelihood function approach
 ```{r}
 step1 <- function(response, predictors, candidates, partition) {
  rhs <- paste0(paste0(predictors, collapse="+"), "+", candidates)
@@ -161,16 +163,33 @@ step1 <- function(response, predictors, candidates, partition) {
  auc_rocs <- sapply(formulas, function(fm) {
  model <- glm(fm, data=partition$train, family=binomial())
  pred <- predict(model, newdata=partition$valid, type="response")
- print(response, " response")
- print(partition$valid[[response]], " partition$valid[[response]]")
+ #print(response, " response")
+ #print(partition$valid[[response]], " partition$valid[[response]]")
  
- roc <- pROC::roc(response=partition$valid[[response]], predictor=predictors)
+ roc <- pROC::roc(response=partition$valid[[1]], predictor=predictors)
  pROC::auc(roc)
  })
 
 names(auc_rocs) <- candidates
 attr(auc_rocs, " best") <- auc_rocs[which.max(auc_rocs)]
 auc_rocs
+}
+```
+
+```{r}
+step2 <- function(response, predictors, candidates, partition) {
+  # Building the logistic regression
+  rhs <- paste0(paste0(predictors, collapse="+"), "+", candidates)
+  formulas <- lapply(paste0(response, "~", rhs), as.formula)
+  
+  log_likelihoods <- sapply(formulas, function(fm) {
+    model <- glm(fm, data=partition$train, family=binomial())
+    logLik(model)
+  })
+  
+  names(log_likelihoods) <- candidates
+  attr(log_likelihoods, "best") <- log_likelihoods[which.max(log_likelihoods)]
+  log_likelihoods
 }
 ```
 
@@ -187,26 +206,27 @@ Step 1 (no variables):
 preds <- "1"
 # cands <- c("mrace6", "risk_level_cat", "meduc", "bfacil.x", "sex.x", "mager9")
 cands <- c("mrace6", "risk_level_cat", "meduc", "mager9")
-s1 <- step1("mortality_status", preds, cands, imputed_partition)
+#s1 <- step1("mortality_status", preds, cands, imputed_partition)
+s1 <- step2("mortality_status", preds, cands, imputed_partition)
+
+model <- c(model, attr(s1, " best"))
+s1
+```
+
+```{r}
+preds <- "meduc"
+# cands <- c("mrace6", "risk_level_cat", "meduc", "bfacil.x", "sex.x", "mager9")
+cands <- c("mrace6", "risk_level_cat", "mager9")
+#s1 <- step2("mortality_status", preds, cands, imputed_partition)
+s1 <- step2("mortality_status", preds, cands, imputed_partition)
 
 model <- c(model, attr(s1, " best"))
 s1
 ```
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+-------------------------------------------------------------------------------
+# Stretch goal work
 
 
 ```{r}
