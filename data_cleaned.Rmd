@@ -77,13 +77,26 @@ merged_df <- left_join(denom_data, numerator_data, by = "key")
 merged_df$mortality_status[!is.na(merged_df$brthwgt.y)] <- 1
 ```
 
+# Beza's section
+```{r}
+# Subset the data frame by death and alive classes
+death_cases <- mydata[mydata$death == 1, ]
+alive_cases <- mydata[mydata$death == 0, ]
+
+# Compute the number of cases in the minority class
+n_death <- nrow(death_cases)
+
+# Sample n_alive cases from the majority class 
+n_alive <- n_death 
+alive_sample <- alive_cases[sample(nrow(alive_cases), n_alive), ]
+
+# Combine the resampled data frames into a new data frame
+balanced_data <- rbind(death_cases, alive_sample)
+```
+
 
 # Step 1: Calculate the risk level based on columns 313-331
 # Step 2: Create 3 categories based on risk level number: no/low risk, medium risk, high risk
-Scale: 0 - 10
-        Low: Scores from 0 to 5
-        Medium: Scores from 6 to 11
-        High: Scores from 12 to 17
 # Step 3: Use this variable to see if it will make the model better fit 
 
 
@@ -138,90 +151,23 @@ imputed_partition <- resample_partition(imputed_rf,
 imputed_partition
 ```
 
-# RMSE approach (will not work for logistic regression model)
+
+# Testing the AIC stepwise approach
+#First round -- meduc, mrace6
 ```{r}
-# step1 <- function(response, predictors, candidates, partition)
-# {
-#   rhs <- paste0(paste0(predictors, collapse="+"), "+", candidates)
-#   formulas <- lapply(paste0(response, "~", rhs), as.formula)
-#   rmses <- sapply(formulas,
-#                   function(fm) rmse(glm(fm, data=imputed_partition$train),
-#                                     data=imputed_partition$valid), family = "binomial")
-#   names(rmses) <- candidates
-#   attr(rmses, " best") <- rmses[which.min(rmses)]
-#   rmses
-# }
-```
+library(MASS)
+# Use stepAIC to select the best number of variables to include in the model based on AIC
+model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = imputed_partition$train, family = binomial(link = "logit")), 
+                              direction = "forward", 
+                              scope = formula(~ mrace6 + risk_level_cat + meduc + mager9), 
+                              trace = FALSE, 
+                              k = log(nrow(imputed_partition$train)))
 
-# Log-likelihood function approach
-```{r}
-step1 <- function(response, predictors, candidates, partition) {
- rhs <- paste0(paste0(predictors, collapse="+"), "+", candidates)
- formulas <- lapply(paste0(response, "~", rhs), as.formula)
+# Print the selected model
+summary(model_stepwise_AIC)
 
- # Compute AUC-ROC for each candidate model
- auc_rocs <- sapply(formulas, function(fm) {
- model <- glm(fm, data=partition$train, family=binomial())
- pred <- predict(model, newdata=partition$valid, type="response")
- #print(response, " response")
- #print(partition$valid[[response]], " partition$valid[[response]]")
- 
- roc <- pROC::roc(response=partition$valid[[1]], predictor=predictors)
- pROC::auc(roc)
- })
-
-names(auc_rocs) <- candidates
-attr(auc_rocs, " best") <- auc_rocs[which.max(auc_rocs)]
-auc_rocs
-}
-```
-
-```{r}
-step2 <- function(response, predictors, candidates, partition) {
-  # Building the logistic regression
-  rhs <- paste0(paste0(predictors, collapse="+"), "+", candidates)
-  formulas <- lapply(paste0(response, "~", rhs), as.formula)
-  
-  log_likelihoods <- sapply(formulas, function(fm) {
-    model <- glm(fm, data=partition$train, family=binomial())
-    logLik(model)
-  })
-  
-  names(log_likelihoods) <- candidates
-  attr(log_likelihoods, "best") <- log_likelihoods[which.max(log_likelihoods)]
-  log_likelihoods
-}
-```
-
-
-Let's initialize a variable for tracking out model.
-
-```{r}
-model <- NULL
-```
-
-Step 1 (no variables):
-
-```{r}
-preds <- "1"
-# cands <- c("mrace6", "risk_level_cat", "meduc", "bfacil.x", "sex.x", "mager9")
-cands <- c("mrace6", "risk_level_cat", "meduc", "mager9")
-#s1 <- step1("mortality_status", preds, cands, imputed_partition)
-s1 <- step2("mortality_status", preds, cands, imputed_partition)
-
-model <- c(model, attr(s1, " best"))
-s1
-```
-
-```{r}
-preds <- "meduc"
-# cands <- c("mrace6", "risk_level_cat", "meduc", "bfacil.x", "sex.x", "mager9")
-cands <- c("mrace6", "risk_level_cat", "mager9")
-#s1 <- step2("mortality_status", preds, cands, imputed_partition)
-s1 <- step2("mortality_status", preds, cands, imputed_partition)
-
-model <- c(model, attr(s1, " best"))
-s1
+# Test for the effect of race on infant mortality using odds ratios
+exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
 ```
 
 
