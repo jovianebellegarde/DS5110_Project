@@ -35,7 +35,7 @@ library(modelr)
   # Create unique key from birthweight, DOB time, facility type, pre-pregnancy weight, weight gain 
   # Remove duplicate keys 
 # Generating Key
-numerator_data <- fread("./link2020usnum.csv", 
+numerator_data <- fread("/Users/lesrene/Downloads/link2020usnum.csv", 
                       select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain', 'dob_yy', 'dob_mm','dob_wk', 'sex')) %>% arrange(desc(brthwgt))
 numerator_data <- data.frame(numerator_data)
 numerator_data$brthwgt <- replace(numerator_data$brthwgt, numerator_data$brthwgt == 9999, NA)
@@ -52,7 +52,7 @@ numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
                                             sep = '-'))
 numerator_data <- distinct(numerator_data)
 # Denominator File
-denom_data <- fread("./link2020usden.csv",select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain','mrace6','ilive','meduc','bfacil3','rf_pdiab','rf_gdiab','rf_phype','rf_ghype','rf_ehype','rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar','no_risks', 'mager9', 'dob_yy', 'dob_mm','dob_wk', 'sex'))
+denom_data <- fread("/Users/lesrene/Downloads/link2020usden.csv",select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain','mrace6','ilive','meduc','bfacil3','rf_pdiab','rf_gdiab','rf_phype','rf_ghype','rf_ehype','rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar','no_risks', 'mager9', 'dob_yy', 'dob_mm','dob_wk', 'sex'))
 denom_data <- data.frame(denom_data)
 denom_data <- denom_data %>% arrange(desc(brthwgt)) 
 denom_data$brthwgt <- replace(denom_data$brthwgt, denom_data$brthwgt == 9999, NA)
@@ -90,17 +90,13 @@ merged_df$mortality_status[!is.na(merged_df$brthwgt.y)] <- 1
 # Subset the data frame by death and alive classes
 death_cases <- merged_df[merged_df$mortality_status == 1, ]
 alive_cases <- merged_df[merged_df$mortality_status == 0, ]
-
 # Compute the number of cases in the minority class
 n_death <- nrow(death_cases)
-
 # Sample n_alive cases from the majority class 
 n_alive <- n_death 
 alive_sample <- alive_cases[sample(nrow(alive_cases), n_alive), ]
-
 # Combine the resampled data frames into a new data frame
 balanced_data <- rbind(death_cases, alive_sample)
-
 head(balanced_data)
 ```
 
@@ -116,7 +112,7 @@ head(balanced_data)
 library(tibble)
 library(stringr)
 # Removing columns that created the key
-births <- balanced_data %>% select(-c('brthwgt.x','brthwgt.y', 'dob_tt.x','dob_tt.y',
+births <- balanced_data %>% dplyr::select(-c('brthwgt.x','brthwgt.y', 'dob_tt.x','dob_tt.y',
                                                   'bfacil.x','bfacil.y', 
                                                  'pwgt_r.x', 'pwgt_r.y','wtgain.x', 
                                                  'wtgain.y'))
@@ -132,21 +128,18 @@ imputed_rf <- births %>%
   mutate_at(vars(contains("rf_")), ~str_replace(.,"X", "0")) %>%
   mutate_at(vars(contains("rf_")), ~str_replace(.,"U", "0")) %>%
   mutate_at(vars(contains("rf_")), ~as.numeric(as.character(.))) %>%
-  mutate(sumrf = rowSums(select(., contains("rf_")))) %>%
+  mutate(sumrf = rowSums(dplyr::select(., contains("rf_")))) %>%
   mutate(risk_level_cat = ifelse(sumrf %in% 0:5, 1, ifelse(sumrf %in% 6:11, 2,
                                                            ifelse(sumrf %in% 12:17, 3, NA)))) %>%
   mutate(risk_level = ifelse(sumrf %in% 0:5, "Low", ifelse(sumrf %in% 6:11, "Medium",
                       ifelse(sumrf %in% 12:17, "High", NA))))
-
 # Data Clean up to remove some columns that are not needed
-
 tibble(imputed_rf)
 ```
 
 ```{r}
 # fit the logistic regression model
 model_simple <- glm(mortality_status ~ mrace6, data = imputed_rf, family = binomial)
-
 summary(model_simple)
 ```
 
@@ -160,7 +153,6 @@ imputed_partition <- resample_partition(imputed_rf,
                                     p=c(train=0.6,
                                         valid=0.2,
                                         test=0.2))
-
 imputed_partition
 ```
 
@@ -175,13 +167,8 @@ model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = imputed_partition
                               scope = formula(~ mrace6 + risk_level_cat + meduc + mager9), 
                               trace = FALSE, 
                               k = log(nrow(imputed_partition$train)))
-
-
-
 # Print the selected model
 summary(model_stepwise_AIC)
-
-
 # Test for the effect of race on infant mortality using odds ratios
 #exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
 ```
@@ -193,15 +180,13 @@ summary(model_stepwise_AIC)
 
 ```{r}
 # fit the logistic regression model
-model <- glm(mortality_status ~ mrace6 + mager9 + meduc + sumrf, data = imputed_rf, family = binomial)
-
+model <- glm(mortality_status ~ mrace6 + mager9 + meduc, data = imputed_rf, family = binomial)
 summary(model)
 ```
 
 
 ```{r}
 # may end up needing to weight data  by race after all but luckily there's infant mortality rates documented by race in the documentation maybe we can use those to weight 
-
 # The infant mortality rates based on the documentation for maternal race:
 # Overall = 5.51
 # Non-Hispanic White = 4.45
@@ -210,7 +195,6 @@ summary(model)
 # Non-Hispanic Asian = 3.25
 # Non-Hispanic Native Hawaiian or Other Pacific Islander = 7.68
 # Hispanic = 4.87
-
 ```
 
 ```{r}
@@ -218,24 +202,18 @@ data_race <- imputed_rf
 data_race$mrace6 <- 1
 fitted_probs <- predict(model, newdata = data_race, type = "response")
 sim_outcome_1 <- rbinom(n = nrow(data_race), size = 1, prob = fitted_probs)
-
 data_race$mrace6 <- 2
 fitted_probs <- predict(model, newdata = data_race, type = "response")
 sim_outcome_2 <- rbinom(n = nrow(data_race), size = 1, prob = fitted_probs)
-
 # perform t-test
 p_val <- t.test(sim_outcome_2, sim_outcome_1)$p.value
-
 p_val
-
 ```
 
 ```{r}
 # set up the range of values to vary
 #race_values <- unique(imputed_rf$mrace6)
-
 race_values <- seq(from = 1, to = 6, by = 1)
-
 # create function to simulate outcome data based on varying maternal race values
 # got this function w/ help from chatgpt
 sim_outcome <- function(data, maternal_race) {
@@ -244,33 +222,31 @@ sim_outcome <- function(data, maternal_race) {
   sim_outcome <- rbinom(n = nrow(data), size = 1, prob = fitted_probs)
   return(sim_outcome)
 }
-
 # simulate outcome data for varying maternal race values
-sim_data <- lapply(race_values, function(mr) sim_outcome(imputed_rf, mr))
+sim_data <- lapply(race_values, function(mr) sim_outcome(data_race, mr))
 sim_data <- do.call(cbind, sim_data)
-
 # calculate odds ratios for each simulated dataset
 odds_ratios <- apply(sim_data, 2, function(x) {
-  model_sim <- glm(x ~ mrace6 + mager9 + meduc + sumrf, data = imputed_rf, family = binomial)
+  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = imputed_rf, family = binomial)
   exp(coef(model_sim)["mrace6"])
 })
+odds_ratios
+```
 
-
+```{r}
 # plot odds ratios as a function of maternal race
 plot(race_values, odds_ratios, type = "l", xlab = "Maternal Race", ylab = "Odds Ratio")
 ```
 
 
 ```{r}
-
 # create empty vectors to store odds ratios and p-values for each race group
 p_values <- c(0, 0, 0, 0, 0, 0)
-
 # loop through each maternal race group
 for(i in 1:length(race_values)) {
   
   # calculate p-value for current race group
-  model_race <- glm(mortality_status ~ mrace6 + mager9 + meduc + sumrf, data = data_subset, family = binomial)
+  model_race <- glm(mortality_status ~ mrace6 + mager9 + meduc, data = data_subset, family = binomial)
   p_value_i <- summary(model_race)$coef[2,4]
   
   # store results for current race group in vectors
@@ -282,11 +258,9 @@ for(i in 1:length(race_values)) {
 
 ```{r}
 p_values
-
 # plot p-values for each maternal race group
 barplot(p_values, names.arg = race_values, ylab = "p-value")
 abline(h = 0.05, lty = 2)
-
 ```
 
 
