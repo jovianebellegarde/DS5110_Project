@@ -52,6 +52,7 @@ numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
                                             numerator_data$dob_yy,
                                             numerator_data$dob_mm,
                                             numerator_data$dob_wk,
+                                            numerator_data$sex,
                                             sep = '-'))
 numerator_data <- distinct(numerator_data)
 ```
@@ -84,6 +85,7 @@ denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
                                             denom_data$dob_yy,
                                             denom_data$dob_mm,
                                             denom_data$dob_wk,
+                                            denom_data$sex,
                                             sep = '-'))
 
 denom_data <- distinct(denom_data)
@@ -132,10 +134,12 @@ births <- balanced_data %>% dplyr::select(-c('brthwgt.x','brthwgt.y', 'dob_tt.x'
                                                   'bfacil.x','bfacil.y', 
                                                  'pwgt_r.x', 'pwgt_r.y','wtgain.x', 
                                                  'wtgain.y'))
-# Next steps: 
+# Tidying: 
   # Convert the Y/N in risk columns to 0 and 1's
-  # Sum up all the fisk factor columns for risk score
-  # Create risk level column and create category (Low, Medium, High) based on score
+  # Sum up all the risk factor columns to calculate maternal health risk score
+  # Create risk level column and assign category 
+    #(No/Low, Medium, High) based on score
+
 imputed_rf <- births %>% 
   mutate_at("ilive", ~str_replace(.,"N", "0")) %>%
   mutate_at("ilive", ~str_replace(.,"Y", "1")) %>%
@@ -151,6 +155,7 @@ imputed_rf <- births %>%
   mutate(risk_level = ifelse(sumrf %in% 0:2, "Low", 
                       ifelse(sumrf %in% 3:5, "Medium",
                       ifelse(sumrf %in% 6:10, "High", NA))))
+
 # Data Clean up to remove some columns that are not needed
 
 tibble(imputed_rf)
@@ -159,7 +164,8 @@ tibble(imputed_rf)
 # Are we still keeping this in here? 
 ```{r}
 # fit the logistic regression model
-model_simple <- glm(mortality_status ~ mrace6, data = imputed_rf, family = binomial)
+model_simple <- glm(mortality_status ~ mrace6, data = imputed_rf, 
+                    family = binomial)
 summary(model_simple)
 ```
 
