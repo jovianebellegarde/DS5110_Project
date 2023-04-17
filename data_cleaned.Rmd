@@ -33,8 +33,8 @@ library(ggplot2)
   # Generate unique key from birthweight, DOB time, facility type, 
   #      pre-pregnancy weight, weight gain, DOB Year, DOB Month, DOB Week 
   # Remove duplicate keys 
-
-numerator_data <- fread("/Users/lesrene/Downloads/link2020usnum.csv", 
+#/Users/lesrene/Downloads/link2020usnum.csv"
+numerator_data <- fread("./link2020usnum.csv", 
                       select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 
                                'wtgain', 'dob_yy', 'dob_mm',
                                'dob_wk', 'sex')) %>% arrange(desc(brthwgt))
@@ -60,7 +60,8 @@ numerator_data <- distinct(numerator_data)
 # Created mortality_status indicator column (0 and 1)
 ```{r}
 # Build dataset from Denominator File
-denom_data <- fread("/Users/lesrene/Downloads/link2020usden.csv",
+#/Users/lesrene/Downloads/link2020usden.csv
+denom_data <- fread("./link2020usden.csv",
                     select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain',
                              'mrace6','ilive','meduc','bfacil3','rf_pdiab',
                              'rf_gdiab','rf_phype','rf_ghype','rf_ehype',
@@ -144,11 +145,14 @@ imputed_rf <- births %>%
   mutate_at(vars(contains("rf_")), ~str_replace(.,"U", "0")) %>%
   mutate_at(vars(contains("rf_")), ~as.numeric(as.character(.))) %>%
   mutate(sumrf = rowSums(dplyr::select(., contains("rf_")))) %>%
-  mutate(risk_level_cat = ifelse(sumrf %in% 0:5, 1, ifelse(sumrf %in% 6:11, 2,
-                                                           ifelse(sumrf %in% 12:17, 3, NA)))) %>%
-  mutate(risk_level = ifelse(sumrf %in% 0:2, "Low", ifelse(sumrf %in% 3:5, "Medium",
+  mutate(risk_level_cat = ifelse(sumrf %in% 0:5, 1, 
+                                 ifelse(sumrf %in% 6:11, 2,
+                                 ifelse(sumrf %in% 12:17, 3, NA)))) %>%
+  mutate(risk_level = ifelse(sumrf %in% 0:2, "Low", 
+                      ifelse(sumrf %in% 3:5, "Medium",
                       ifelse(sumrf %in% 6:10, "High", NA))))
 # Data Clean up to remove some columns that are not needed
+
 tibble(imputed_rf)
 ```
 
