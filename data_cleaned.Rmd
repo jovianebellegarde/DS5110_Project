@@ -147,9 +147,9 @@ imputed_rf <- births %>%
   mutate_at(vars(contains("rf_")), ~str_replace(.,"U", "0")) %>%
   mutate_at(vars(contains("rf_")), ~as.numeric(as.character(.))) %>%
   mutate(sumrf = rowSums(dplyr::select(., contains("rf_")))) %>%
-  mutate(risk_level_cat = ifelse(sumrf %in% 0:5, 1, 
-                                 ifelse(sumrf %in% 6:11, 2,
-                                 ifelse(sumrf %in% 12:17, 3, NA)))) %>%
+  mutate(risk_level_cat = ifelse(sumrf %in% 0:2, 1, 
+                                 ifelse(sumrf %in% 3:5, 2,
+                                 ifelse(sumrf %in% 6:10, 3, NA)))) %>%
   mutate(risk_level = ifelse(sumrf %in% 0:2, "Low", 
                       ifelse(sumrf %in% 3:5, "Medium",
                       ifelse(sumrf %in% 6:10, "High", NA))))
@@ -197,19 +197,19 @@ model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1,
 # Print the selected model
 summary(model_stepwise_AIC)
 # Test for the effect of race on infant mortality using odds ratios
-#exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
+exp(cbind(OddsRatio = coef(model_stepwise_AIC),confint(model_stepwise_AIC)))
 ```
 
 # --------------------------  ANOVA TEST   -------------------------------------
 
 ```{r}
 # Fitting the reduced model, excluding mrace6
-reduced_model <- glm(mortality_status ~ meduc + mager9, 
+reduced_model <- glm(mortality_status ~ meduc + mager9 + risk_level_cat, 
                      family = binomial(link = "logit"), 
                      data = imputed_partition$train)
 
 # Fitting the full model with all predictor variables
-full_model <- glm(mortality_status ~ meduc + mrace6 + mager9, 
+full_model <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat, 
                   family = binomial(link = "logit"), 
                   data = imputed_partition$train)
 
@@ -217,7 +217,7 @@ full_model <- glm(mortality_status ~ meduc + mrace6 + mager9,
 anova(reduced_model, full_model, test = "Chi")
 ```
 
-# Conclusion: With the p-value being (1.106e-10 > 0.001), we can conclude that removing race has a significant effect on the model. 
+# Conclusion:
 
 Analysis of Deviance Table (Definitions): 
 
