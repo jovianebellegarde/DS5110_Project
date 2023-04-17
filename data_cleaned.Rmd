@@ -24,7 +24,9 @@ library(MASS)
 library(ggplot2)
 ```
 
-# Building dataset and tidying from Numerator File
+# --------------------------  DATA PREP  ---------------------------------------
+
+## Building dataset and tidying from Numerator File
 ```{r}
 # Tidy Process
   # Read in the data
@@ -128,18 +130,14 @@ head(balanced_data)
 # Step 3: Use this variable to see if it will make the model better fit 
 
 ```{r}
-
 # Removing columns that created the key
-births <- balanced_data %>% dplyr::select(-c('brthwgt.x','brthwgt.y', 'dob_tt.x','dob_tt.y',
-                                                  'bfacil.x','bfacil.y', 
-                                                 'pwgt_r.x', 'pwgt_r.y','wtgain.x', 
-                                                 'wtgain.y'))
+births <- balanced_data %>% dplyr::select(-ends_with(".x"), -ends_with(".y"))
+
 # Tidying: 
   # Convert the Y/N in risk columns to 0 and 1's
   # Sum up all the risk factor columns to calculate maternal health risk score
   # Create risk level column and assign category 
     #(No/Low, Medium, High) based on score
-
 imputed_rf <- births %>% 
   mutate_at("ilive", ~str_replace(.,"N", "0")) %>%
   mutate_at("ilive", ~str_replace(.,"Y", "1")) %>%
@@ -157,9 +155,12 @@ imputed_rf <- births %>%
                       ifelse(sumrf %in% 6:10, "High", NA))))
 
 # Data Clean up to remove some columns that are not needed
-
+imputed_rf <- imputed_rf %>% dplyr::select(-starts_with("rf_")) 
 tibble(imputed_rf)
 ```
+
+
+# --------------------------  DATA MODELING  -----------------------------------
 
 # Are we still keeping this in here? 
 ```{r}
@@ -168,8 +169,6 @@ model_simple <- glm(mortality_status ~ mrace6, data = imputed_rf,
                     family = binomial)
 summary(model_simple)
 ```
-
-
 
 
 ## Partitioning the dataset
@@ -183,7 +182,7 @@ imputed_partition
 ```
 
 
-# Stepwise selection using AIC
+# Stepwise selection using AIC metric 
 ```{r}
 
 # Use step AIC to select the best number of variables to include in the model based on AIC
@@ -200,6 +199,58 @@ summary(model_stepwise_AIC)
 # Test for the effect of race on infant mortality using odds ratios
 #exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
 ```
+
+# --------------------------  ANOVA TEST   -------------------------------------
+
+```{r}
+# Fitting the reduced model, excluding mrace6
+reduced_model <- glm(mortality_status ~ meduc + mager9, 
+                     family = binomial(link = "logit"), 
+                     data = imputed_partition$train)
+
+# Fitting the full model with all predictor variables
+full_model <- glm(mortality_status ~ meduc + mrace6 + mager9, 
+                  family = binomial(link = "logit"), 
+                  data = imputed_partition$train)
+
+# Compare the two models using ANOVA
+anova(reduced_model, full_model, test = "Chi")
+```
+
+# Conclusion: With the p-value being (1.106e-10 > 0.001), we can conclude that removing race has a significant effect on the model. 
+
+Analysis of Deviance Table (Definitions): 
+
+Resid. Df: This column shows the residual degrees of freedom for each model, 
+which is the difference between the total degrees of freedom and the number of 
+estimated parameters. The residual degrees of freedom represent the number of 
+independent pieces of information in the data that are used to estimate the 
+parameters of the model.
+
+Resid. Dev: This column shows the residual deviance for each model, 
+which is the deviance of the fitted model after accounting for the number 
+of estimated parameters. A smaller residual deviance indicates a better fit 
+of the model to the data.
+
+Df: This column shows the difference in the degrees of freedom between the 
+    two models.
+    
+Deviance: This column shows the difference in deviance between the two models. 
+          A larger deviance indicates that the full model is a better fit to 
+          the data than the reduced model.
+          
+Pr(>Chi): This column shows the p-value for the chi-squared test of the 
+          difference in deviance between the two models. A small p-value 
+          (usually less than 0.05) indicates that the full model provides a 
+          significantly better fit to the data than the reduced model. 
+          In our case, the p-value is less than 0.001, which indicates a 
+          highly significant improvement in fit when mrace6 is included 
+          in the model.
+
+# --------------------------  ACCURACY EVALUATION  -----------------------------
+
+
+
 
 
 -------------------------------------------------------------------------------
