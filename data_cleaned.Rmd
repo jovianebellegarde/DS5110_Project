@@ -9,7 +9,6 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
 ```{r}
 library(tibble)
 library(dplyr)
@@ -40,9 +39,6 @@ numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
 numerator_data <- distinct(numerator_data)
 numerator_data
 ```
-
-
-
 
 ```{r}
 denom_data <- fread("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain','mrace6','ilive','meduc','bfacil3','rf_pdiab','rf_gdiab','rf_phype','rf_ghype','rf_ehype','rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar','no_risks', 'mager9', 'dob_yy', 'dob_mm','dob_wk'))
@@ -77,47 +73,17 @@ merged_df$mortality_status[!is.na(merged_df$brthwgt.y)] <- 1
 merged_df$mortality_status
 ```
 
-
-
-
 ```{r}
 library(tibble)
 library(stringr)
-# Removing columns that created the key
-births <- merged_df %>% dplyr::select(-c('brthwgt.x','brthwgt.y', 'dob_tt.x','dob_tt.y',
-                                                  'bfacil.x','bfacil.y', 
-                                                 'pwgt_r.x', 'pwgt_r.y','wtgain.x', 
-                                                 'wtgain.y'))
-# Next steps: 
-  # Convert the Y/N in risk columns to 0 and 1's
-  # Sum up all the fisk factor columns for risk score
-  # Create risk level column and create category (Low, Medium, High) based on score
-imputed_rf <- births %>% 
-  mutate_at("ilive", ~str_replace(.,"N", "0")) %>%
-  mutate_at("ilive", ~str_replace(.,"Y", "1")) %>%
-  mutate_at(vars(contains("rf_")), ~str_replace(.,"N", "0")) %>%
-  mutate_at(vars(contains("rf_")), ~str_replace(.,"Y", "1")) %>%
-  mutate_at(vars(contains("rf_")), ~str_replace(.,"X", "0")) %>%
-  mutate_at(vars(contains("rf_")), ~str_replace(.,"U", "0")) %>%
-  mutate_at(vars(contains("rf_")), ~as.numeric(as.character(.))) %>%
-  mutate(sumrf = rowSums(dplyr::select(., contains("rf_")))) %>%
-  mutate(risk_level_cat = ifelse(sumrf %in% 0:5, 1, ifelse(sumrf %in% 6:11, 2,
-                                                           ifelse(sumrf %in% 12:17, 3, NA)))) %>%
-  mutate(risk_level = ifelse(sumrf %in% 0:5, "Low", ifelse(sumrf %in% 6:11, "Medium",
-                      ifelse(sumrf %in% 12:17, "High", NA))))
-# Data Clean up to remove some columns that are not needed
-imputed_rf <- imputed_rf %>% dplyr::select(-starts_with("rf_")) 
-tibble(imputed_rf$mortality_status)
-```
 
-```{r}
 # Removing columns that created the key
 births <- merged_df %>% dplyr::select(-ends_with(".x"), -ends_with(".y"))
 
 # Tidying:
 # Convert the Y/N in risk columns to 0 and 1's
 # Sum up all the risk factor columns to calculate maternal health risk score
-# Create risk level column and assign category 
+# Create risk level column and assign category
 #(No/Low, Medium, High) based on score
 imputed_rf <- births %>%
  mutate_at("ilive", ~str_replace(.,"N", "0")) %>%
@@ -140,17 +106,8 @@ imputed_rf <- births %>%
 # Data Clean up to remove some columns that are not needed
 imputed_rf <- imputed_rf %>% dplyr::select(-starts_with("rf_"))
 tibble(imputed_rf)
+
 ```
-
-
-```{r}
-#training <- imputed_partition$train
-#death_cases <- merged_df[training$mortality_status == 1, ]
-#alive_cases <- merged_df[training$mortality_status == 0, ]
-#death_cases
-#training["mortality_status"]
-```
-
 
 ```{r}
 library(modelr)
@@ -159,11 +116,7 @@ set.seed(2)
 imputed_partition <- resample_partition(imputed_rf,
                                       c(train=0.6,
                                         test=0.4))
-
-
-
 imputed_partition$train$data
-
 ```
 
 ```{r}
@@ -186,15 +139,28 @@ head(training_data)
 ```
 
 ```{r}
-ggplot(training_data, aes(fill=mrace6, x=mrace6 )) + 
-    geom_bar()+ theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+ggplot(training_data, aes(x=mrace6 )) + 
+  geom_bar()+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Race ")
 ```
 
+EDA
 ```{r}
-# fit the logistic regression model
-model_simple <- glm(mortality_status ~ mrace6, data = training_data, family = binomial)
-summary(model_simple)
+ggplot(training_data, aes(x=mager9 )) + 
+  geom_bar()+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  labs(title="Race ")
+
+```
+```{r}
+ggplot(training_data, aes(x=risk_level_cat )) + 
+  geom_bar()+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  labs(title="Risk Level ")
+
+filtered_df <- training_data %>% filter(risk_level_cat == "3")
+nrow(filtered_df)
 ```
 
 # Testing the AIC stepwise approach
@@ -206,11 +172,12 @@ training_data
 # Use step AIC to select the best number of variables to include in the model based on AIC
 model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = training_data, family = binomial(link = "logit")), 
                               direction = "forward", 
-                              scope = formula(~ mrace6 + risk_level + meduc + mager9), 
+                              scope = formula(~ mrace6 + risk_level_cat + meduc + mager9), 
                               trace = FALSE, 
-                              k = log(nrow(imputed_partition$train)))
+                              k = log(nrow(training_data)))
 # Print the selected model
 summary(model_stepwise_AIC)
+model_stepwise_AIC
 # Test for the effect of race on infant mortality using odds ratios
 exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
 ```
