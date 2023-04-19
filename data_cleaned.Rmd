@@ -161,7 +161,124 @@ tibble(imputed_rf)
 
 
 # --------------------------  DATA MODELING  -----------------------------------
+added - graziano
+```{r}
+library(modelr)
+set.seed(2)
 
+imputed_partition <- resample_partition(imputed_rf,
+                                      c(train=0.6,
+                                        test=0.4))
+
+
+imputed_partition$train$data
+
+```
+
+```{r}
+# Perform resampling on training data
+#imputed_train <- imputed_rf[imputed_partition == "train", ] # Subset training data
+#births_indices <- which(imputed_train$mortality_status == "births") # Identify indices of births
+#deaths_indices <- which(imputed_train$mortality_status == "deaths") # Identify indices of deaths
+
+
+
+# Perform oversampling of minority class (deaths)
+#oversampled_deaths_indices <- sample(deaths_indices, size = length(births_indices), replace = TRUE)
+#imputed_train_oversampled <- rbind(imputed_train, imputed_train[oversampled_deaths_indices, ]) # Combine original and oversampled data
+
+
+
+# Perform undersampling of majority class (births)
+#undersampled_births_indices <- sample(births_indices, size = length(deaths_indices))
+#imputed_train_undersampled <- imputed_train[-undersampled_births_indices, ] # Subset majority class data
+
+#imputed_train_oversampled
+#imputed_train_oversampled
+```
+
+```{r}
+# Subset the data frame by death and alive classes
+training <- imputed_partition$train$data
+death_cases <- merged_df[training$mortality_status == 1, ]
+alive_cases <- merged_df[training$mortality_status == 0, ]
+# Compute the number of cases in the minority class
+n_death <- nrow(death_cases)
+# Sample n_alive cases from the majority class 
+n_alive <- n_death 
+alive_sample <- alive_cases[sample(nrow(alive_cases), n_alive), ]
+# Combine the resampled data frames into a new data frame
+training_data <- rbind(death_cases, alive_sample)
+head(training_data)
+```
+
+```{r}
+
+# Count the number of observations in each race group
+race_counts <- as.factor(training_data$mrace6)
+cat("Original race counts:\n", race_counts, "\n")
+
+table(race_counts)
+
+# Define the minority and majority races
+minority_races <- names(race_counts[race_counts < max(race_counts)])
+majority_race <- names(race_counts[race_counts == max(race_counts)])
+
+minority_races <- names(race_counts)[race_counts == min(race_counts)]
+majority_race <- as.numeric(names(race_counts))[race_counts == max(race_counts)]
+
+race_counts
+minority_races
+majority_race
+```
+
+
+```{r}
+# Define oversampling ratio for minority classes
+oversample_ratio <- 2 # For example, oversample minority classes twice
+
+
+
+# Oversample minority classes
+oversampled_data <- training_data # Initialize oversampled data
+for (minority_race in minority_races) {
+ minority_class <- subset(training_data, race == minority_race)
+ n_minority <- nrow(minority_class)
+ oversampled_minority <- minority_class[sample(1:n_minority, size = n_minority * oversample_ratio, replace = TRUE), ]
+ oversampled_data <- rbind(oversampled_data, oversampled_minority)
+}
+
+
+
+# Count the number of observations in each race group after oversampling
+oversampled_race_counts <- table(oversampled_data$mrace6)
+cat("Oversampled race counts:\n", oversampled_race_counts, "\n")
+
+
+
+# Oversampled dataset with balanced race groups
+cat("Oversampled dataset:\n")
+print(oversampled_data)
+race = oversampled_data$mrace6 == '1'
+
+```
+
+```{r}
+ggplot(training_data, aes(fill=mrace6, x=mrace6)) + 
+    geom_bar()+ theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  labs(title="Race Distribution for Trans People (Weighted & Unweighted)")
+```
+```{r}
+ggplot(oversampled_data, aes(fill=mrace6, x=mrace6)) + 
+    geom_bar()+ theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  labs(title="Race Distribution for Trans People (Weighted & Unweighted)")
+```
+
+
+
+
+
+added to here by graziano 
 # Are we still keeping this in here? 
 ```{r}
 # fit the logistic regression model
