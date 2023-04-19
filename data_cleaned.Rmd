@@ -169,14 +169,14 @@ imputed_partition$train$data
 ```{r}
 # Subset the data frame by death and alive classes
 training <- imputed_partition$train$data
-death_cases <- training[training$mortality_status == 1, ]
+death_cases <- imputed_rf[training$mortality_status == 1, ]
 death_cases
-alive_cases <- training[training$mortality_status == 0, ]
+alive_cases <- imputed_rf[training$mortality_status == 0, ]
 # Compute the number of cases in the minority class
 n_death <- nrow(death_cases)
 # Sample n_alive cases from the majority class 
 n_alive <- n_death 
-training_data <- rbind(death_cases, alive_sample)
+training_data <- rbind(death_cases, alive_cases)
 
 weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.758))))))
 training_data <- training_data[sample(nrow(training_data), n_alive, replace = FALSE, prob = weights), ]
