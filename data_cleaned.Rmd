@@ -16,16 +16,38 @@ library(dtplyr)
 library(tidyr)
 library(data.table)
 library(naniar)
+library(broom)
+library(modelr)
 library(stringr)
-numerator_data_test <- fread("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv")
+library(MASS)
+library(ggplot2)
+```
 
-numerator_data_test
-numerator_data <- fread("~/Desktop/Project_Intro_Data_Management/link2020usnum.csv", 
-                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 'wtgain', 'dob_yy', 'dob_mm','dob_wk')) %>% arrange(desc(brthwgt))
+# --------------------------  DATA PREP  ---------------------------------------
+
+## Building dataset and tidying from Numerator File
+```{r}
+# Tidy Process
+  # Read in the data
+  # Arrange birthweight in desc order
+  # Replace all 9999 values in birthweight and DOB Time with NAs and omit
+  # Generate unique key from birthweight, DOB time, facility type, 
+  #      pre-pregnancy weight, weight gain, DOB Year, DOB Month, DOB Week 
+  # Remove duplicate keys 
+
+# Path files for running locally
+#/Users/lesrene/Downloads/link2020usnum.csv"
+# 
+
+numerator_data <- fread("./link2020usnum.csv", 
+                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 
+                               'wtgain', 'dob_yy', 'dob_mm',
+                               'dob_wk', 'sex')) %>% arrange(desc(brthwgt))
 numerator_data <- data.frame(numerator_data)
-numerator_data <- data.frame(numerator_data)
-numerator_data$brthwgt <- replace(numerator_data$brthwgt, numerator_data$brthwgt == 9999, NA)
-numerator_data$dob_tt <- replace(numerator_data$dob_tt, numerator_data$dob_tt == 9999, NA)
+numerator_data$brthwgt <- replace(numerator_data$brthwgt, 
+                                  numerator_data$brthwgt == 9999, NA)
+numerator_data$dob_tt <- replace(numerator_data$dob_tt, 
+                                 numerator_data$dob_tt == 9999, NA)
 numerator_data <- numerator_data %>% na.omit()
 numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
                                             numerator_data$dob_tt,
@@ -35,18 +57,30 @@ numerator_data <- numerator_data %>% mutate(key = paste(numerator_data$brthwgt,
                                             numerator_data$dob_yy,
                                             numerator_data$dob_mm,
                                             numerator_data$dob_wk,
+                                            numerator_data$sex,
                                             sep = '-'))
 numerator_data <- distinct(numerator_data)
-numerator_data
 ```
 
+# Building dataset and tidying from Denominator File
+# Created mortality_status indicator column (0 and 1)
 ```{r}
-denom_data <- fread("/Users/grazianoperegrino/Desktop/Project_Intro_Data_Management/link2020usden.csv", select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain','mrace6','ilive','meduc','bfacil3','rf_pdiab','rf_gdiab','rf_phype','rf_ghype','rf_ehype','rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar','no_risks', 'mager9', 'dob_yy', 'dob_mm','dob_wk'))
-
+# Build dataset from Denominator File
+#/Users/lesrene/Downloads/link2020usden.csv
+denom_data <- fread("./link2020usden.csv",
+                    select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain',
+                             'mrace6','ilive','meduc','bfacil3','rf_pdiab',
+                             'rf_gdiab','rf_phype','rf_ghype','rf_ehype',
+                             'rf_ppb','rf_inft','rf_drg','rf_art','rf_cesar',
+                             'no_risks', 'mager9', 'dob_yy', 'dob_mm','dob_wk',
+                             'sex'))
+# Tidying data
 denom_data <- data.frame(denom_data)
 denom_data <- denom_data %>% arrange(desc(brthwgt)) 
-denom_data$brthwgt <- replace(denom_data$brthwgt, denom_data$brthwgt == 9999, NA)
-denom_data$dob_tt <- replace(denom_data$dob_tt, denom_data$dob_tt == 9999, NA) 
+denom_data$brthwgt <- replace(denom_data$brthwgt, 
+                              denom_data$brthwgt == 9999, NA)
+denom_data$dob_tt <- replace(denom_data$dob_tt, 
+                             denom_data$dob_tt == 9999, NA) 
 denom_data <- denom_data %>% na.omit()
 denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
                                             denom_data$dob_tt,
@@ -56,27 +90,21 @@ denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
                                             denom_data$dob_yy,
                                             denom_data$dob_mm,
                                             denom_data$dob_wk,
+                                            denom_data$sex,
                                             sep = '-'))
-denom_data <- distinct(denom_data)
-denom_data
-```
 
-```{r}
+denom_data <- distinct(denom_data)
 # Creating the mortality indicator column 
 # create a new column in the births dataframe to indicate mortality status
 denom_data$mortality_status <- 0
-
 # join the two dataframes based on the primary key column
 merged_df <- left_join(denom_data, numerator_data, by = "key")
 # update the mortality status column based on whether or not a match was found
 merged_df$mortality_status[!is.na(merged_df$brthwgt.y)] <- 1
-merged_df$mortality_status
 ```
 
-```{r}
-library(tibble)
-library(stringr)
 
+```{r}
 # Removing columns that created the key
 births <- merged_df %>% dplyr::select(-ends_with(".x"), -ends_with(".y"))
 
@@ -102,15 +130,14 @@ imputed_rf <- births %>%
                                    ifelse(sumrf %in% 6:10, "High", NA))))
 
 
-
 # Data Clean up to remove some columns that are not needed
 imputed_rf <- imputed_rf %>% dplyr::select(-starts_with("rf_"))
 tibble(imputed_rf)
 
 ```
 
+# ------------------------  DATA PARTIITIONING & OVERSAMPLING ------------------
 ```{r}
-library(modelr)
 set.seed(2)
 
 imputed_partition <- resample_partition(imputed_rf,
@@ -145,7 +172,7 @@ ggplot(training_data, aes(x=mrace6 )) +
   labs(title="Race ")
 ```
 
-EDA
+# --------------------------  EDA  ---------------------------------------------
 ```{r}
 ggplot(training_data, aes(x=mager9 )) + 
   geom_bar()+ 
@@ -162,6 +189,9 @@ ggplot(training_data, aes(x=risk_level_cat )) +
 filtered_df <- training_data %>% filter(risk_level_cat == "3")
 nrow(filtered_df)
 ```
+
+
+# --------------------------  DATA MODELING  -----------------------------------
 
 # Testing the AIC stepwise approach
 #First round -- meduc, mrace6
@@ -199,6 +229,12 @@ full_model <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat,
 anova(reduced_model, full_model, test = "Chi")
 ```
 
+
+# --------------------------  ACCURACY EVALUATION  -----------------------------
+
+
+
+-------------------------------------------------------------------------------
 #STRETCH GOAL WORK 
 
 ```{r}
