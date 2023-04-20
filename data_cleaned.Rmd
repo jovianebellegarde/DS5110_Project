@@ -207,7 +207,7 @@ training_data <- mutate(training_data, mrace6 = as.factor(mrace6), ilive = as.fa
 head(training_data)
 ```
 
-
+# Testing the train/control -- DRAFT
 ```{r}
 # default_glm_mod = train(
 #   form = default ~ .,
@@ -218,15 +218,50 @@ head(training_data)
 # )
 # 
 
+# testing only factor variables
+test_training <- training_data %>% dplyr::select(-c(ilive, key, sumrf,risk_level,Age_Category,Race_Category,Educ_Category))
+
+# Test 1
 default_glm_mod = train(
   form = mortality_status ~ mrace6 + risk_level_cat + meduc + mager9,
-  data = training_data,
+  data = test_training,
   trControl = trainControl(method = "cv", number = 5),
   method = "glm",
   family = "binomial"
 )
 
 default_glm_mod
+
+# Test 2
+default_glm_mod2 = train(
+  form = mortality_status ~ mrace6 + risk_level_cat,
+  data = test_training,
+  trControl = trainControl(method = "cv", number = 5),
+  method = "glm",
+  family = "binomial"
+)
+
+default_glm_mod2
+
+
+# Test 3
+default_glm_mod3 = train(
+  form = mortality_status ~ mrace6,
+  data = test_training,
+  trControl = trainControl(method = "cv", number = 5),
+  method = "glm",
+  family = "binomial"
+)
+
+default_glm_mod3
+
+default_glm_mod4 <- train(mortality_status ~ mrace6 , data=test_training,
+              method="glm", family=binomial(link="logit"),
+              trControl=trainControl(method="none",
+                                     sampling="up"),
+              na.action=na.pass)
+
+default_glm_mod4
 ```
 
 
@@ -325,11 +360,11 @@ exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
 # Fitting the reduced model, excluding mrace6
 reduced_model <- glm(mortality_status ~ meduc + mager9 + risk_level_cat, 
                      family = binomial(link = "logit"), 
-                     data = imputed_partition$train)
+                     data = imputed_rf)
 # Fitting the full model with all predictor variables
 full_model <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat, 
                   family = binomial(link = "logit"), 
-                  data = imputed_partition$train)
+                  data = imputed_rf)
 # Compare the two models using ANOVA
 anova(reduced_model, full_model, test = "Chi")
 ```
