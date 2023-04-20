@@ -158,9 +158,16 @@ imputed_rf <- imputed_rf %>%
                                                   education_table$numerical_value)])
 ```
 
-
+1. Split the data into a training set and a testing set.
+2. Use oversampling techniques (such as SMOTE) on the training set to address any class imbalance issues.
+3. Use cross-validation (such as k-fold cross-validation) on the oversampled training set to build and tune the model. This involves iterating through different hyperparameters and/or subsets of variables to find the best model.
+4. Use the final selected model to make predictions on the testing set.
+5. Evaluate the performance of the model on the testing set using appropriate metrics (such as accuracy, precision, recall, F1 score, ROC curve, AUC, etc.).
+6. Refit the model on the full original dataset (including the oversampled data), using the final selected hyperparameters and variables. This final model can then be used for making predictions on new, unseen data.
 
 # ------------------------  DATA PARTIITIONING & OVERSAMPLING ------------------
+
+# Partitioning the data (training, testing)
 ```{r}
 set.seed(2)
 imputed_partition <- resample_partition(imputed_rf,
@@ -169,7 +176,8 @@ imputed_partition <- resample_partition(imputed_rf,
 #imputed_partition$train$data
 ```
 
-# Balancing the overrepresentation of the Maternal White Population 
+
+# Oversampling: Balancing the Births and Deaths
 ```{r}
 # Subset the data frame by death and alive classes
 training <- imputed_partition$train$data
@@ -181,6 +189,10 @@ n_death <- nrow(death_cases)
 # Sample n_alive cases from the majority class 
 n_alive <- n_death 
 training_data <- rbind(death_cases, alive_cases)
+```
+
+# Oversampling: Balancing the overrepresentation of the Maternal White Population
+```{r}
 # Calculate the weights for each race
 # weights are based on 2020 demographic percentages (else is based on mean of these percents)
 weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.17))))))
@@ -189,6 +201,19 @@ training_data <- training_data[sample(nrow(training_data), n_alive, replace = FA
 # Combine the resampled data frames into a new data frame
 head(training_data)
 ```
+
+# Cross-Validation
+```{r}
+set.seed(3)
+
+diamonds_train <- diamonds10k[-diamonds_part$test$idx,]
+
+diamonds_cv <- crossv_kfold(diamonds_train, 5)
+
+diamonds_cv
+```
+
+
 
 # --------------------------  EDA  ---------------------------------------------
 
@@ -255,9 +280,6 @@ model_stepwise_AIC
 # Test for the effect of race on infant mortality using odds ratios
 exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
 ```
-
-
-
 
 
 
