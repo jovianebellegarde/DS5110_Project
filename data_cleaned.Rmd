@@ -128,13 +128,29 @@ imputed_rf <- births %>%
  mutate(risk_level = ifelse(sumrf %in% 0:2, "Low", 
                             ifelse(sumrf %in% 3:5, "Medium",
                                    ifelse(sumrf %in% 6:10, "High", NA))))
-
+  
+#imputed_rf <- births %>%
 
 # Data Clean up to remove some columns that are not needed
 imputed_rf <- imputed_rf %>% dplyr::select(-starts_with("rf_"))
 tibble(imputed_rf)
 
 ```
+
+Adding Age Category 
+```{r}
+# Age lookup table
+age_table <- data.frame(
+  age_category = c("Under 15", "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54"),
+  numerical_value = c(1, 2, 3, 4, 5, 6, 7, 8, 9)
+)
+
+imputed_rf <- imputed_rf %>% 
+  mutate(Age_Category = age_table$age_category[match(imputed_rf$mager9, 
+                                                  age_table$numerical_value)])
+```
+
+
 
 # ------------------------  DATA PARTIITIONING & OVERSAMPLING ------------------
 ```{r}
@@ -165,6 +181,11 @@ training_data <- training_data[sample(nrow(training_data), n_alive, replace = FA
 head(training_data)
 ```
 
+# --------------------------  EDA  ---------------------------------------------
+
+
+# Distribution of Race
+  ## Notes: Race is more evenly distributed after oversampling
 ```{r}
 ggplot(training_data, aes(x=mrace6 )) + 
   geom_bar()+ 
@@ -172,7 +193,8 @@ ggplot(training_data, aes(x=mrace6 )) +
   labs(title="Race ")
 ```
 
-# --------------------------  EDA  ---------------------------------------------
+# Distribution of Age 
+  ## Notes: Race is more evenly distributed after oversampling
 ```{r}
 ggplot(training_data, aes(x=mager9 )) + 
   geom_bar()+ 
@@ -180,6 +202,8 @@ ggplot(training_data, aes(x=mager9 )) +
   labs(title="Race ")
 
 ```
+
+# Distribution of Health Risk Level
 ```{r}
 ggplot(training_data, aes(x=risk_level_cat )) + 
   geom_bar()+ 
