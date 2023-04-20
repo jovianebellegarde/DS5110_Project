@@ -141,7 +141,7 @@ Adding Categorical Columns Associated with our variables
 ```{r}
 # Age Lookup table
 age_table <- data.frame(
-  age_category = c("Under 15", "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54"),
+  age_category = c("< 15", "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54"),
   numerical_value = c(1, 2, 3, 4, 5, 6, 7, 8, 9)
 )
 
@@ -153,8 +153,8 @@ race_table <- data.frame(
 
 # Education Lookup Table
 education_table <- data.frame(
-  education_category = c("8th Grade or Less", "9-12th Grade w/out Diploma", "High School Graduate", "Some College Credits", "Associate's", "Bachelor's",
-                         "Master's", "Doctorate/Professional Degree","Unknown"),
+  education_category = c("(1) 8th Grade or Less", "(2) 9-12th Grade w/out Diploma", "(3) High School Graduate", "(4) Some College Credits", "(5) Associate's", "(6) Bachelor's",
+                         "(7) Master's", "(8) Doctorate/Professional Degree","(9) Unknown"),
   numerical_value = c(1, 2, 3, 4, 5, 6,7,8,9)
 )
 
@@ -210,42 +210,54 @@ head(training_data)
 # Distribution of Race
   ## Notes: Race is more evenly distributed after oversampling
 ```{r}
-ggplot(training_data, aes(x=mrace6 )) + 
+ggplot(training_data, aes(x=Race_Category)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Race ")
+  labs(title="Distribution of Race")
 ```
 
 # Distribution of Age 
   ## Notes: Race is more evenly distributed after oversampling
 ```{r}
-ggplot(training_data, aes(x=mager9 )) + 
+ggplot(training_data, aes(x=Age_Category)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Race ")
+  labs(title="Distribution of Age")
 
 ```
 
 # Distribution of Health Risk Level
 ```{r}
-ggplot(training_data, aes(x=risk_level_cat )) + 
+ggplot(training_data, aes(x=risk_level)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Risk Level ")
+  labs(title="Distribution of Health Risk Level")
+```
 
-filtered_df <- training_data %>% filter(risk_level_cat == "3")
-nrow(filtered_df)
+# Distribution of Education
+```{r}
+ggplot(training_data, aes(x=Educ_Category)) + 
+  geom_bar()+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  labs(title="Distribution of Education")
+```
+
+# Evaluating Relationships between variables
+
+```{r}
+ggplot(training_data, aes(x=Age_Category, fill=Race_Category)) + 
+  geom_bar(position = "dodge")+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  labs(title="Distribution of Education")
+ # facet_grid(~ Race_Category)
 ```
 
 
 # --------------------------  DATA MODELING  -----------------------------------
 
 # Testing the AIC stepwise approach
-#First round -- meduc, mrace6
 ```{r}
-library(MASS)
-
-training_data
+#training_data
 # Use step AIC to select the best number of variables to include in the model based on AIC
 model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = training_data, family = binomial(link = "logit")), 
                               direction = "forward", 
@@ -258,6 +270,10 @@ model_stepwise_AIC
 # Test for the effect of race on infant mortality using odds ratios
 exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
 ```
+
+
+
+
 
 
 -------------------------------------------------------------------------------
