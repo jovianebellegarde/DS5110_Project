@@ -22,6 +22,7 @@ library(stringr)
 library(MASS)
 library(ggplot2)
 library(caret)
+library(viridis)
 ```
 
 # --------------------------  DATA PREP  ---------------------------------------
@@ -283,10 +284,7 @@ mortality_cv <- crossv_kfold(training_data, 5)
 mortality_cv
 ```
 
-
-
 # --------------------------  EDA  ---------------------------------------------
-
 
 # Distribution of Race
   ## Notes: Race is more evenly distributed after oversampling
@@ -326,12 +324,22 @@ ggplot(training_data, aes(x=Educ_Category)) +
 
 ```{r}
 ggplot(training_data, aes(x=Age_Category, fill=Race_Category)) + 
-  geom_bar(position = "dodge")+ 
+  geom_bar(position = "stack")+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Education") 
   #facet_grid(~ Race_Category)
 ```
 
+# Age and Risk Level HeatMap
+```{r}
+freq_table <- table(Age = training_data$Age_Category, Risk_Level = training_data$risk_level_cat)
+
+ggplot(as.data.frame(freq_table), aes(x = Age, y = Risk_Level, fill = Freq)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "blue") +
+  labs(title = "Relationship Between Age and Health Risk Level",
+       x = "Age", y = "Risk Level", fill = "Count")
+```
 
 # --------------------------  DATA MODELING  -----------------------------------
 
