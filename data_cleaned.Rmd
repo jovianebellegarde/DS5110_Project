@@ -137,17 +137,35 @@ tibble(imputed_rf)
 
 ```
 
-Adding Age Category 
+Adding Categorical Columns Associated with our variables 
 ```{r}
-# Age lookup table
+# Age Lookup table
 age_table <- data.frame(
   age_category = c("Under 15", "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54"),
   numerical_value = c(1, 2, 3, 4, 5, 6, 7, 8, 9)
 )
 
+# Race Lookup Table
+race_table <- data.frame(
+  race_category = c("White", "Black", "American Indian/Alaskan", "Asian", "Native Hawaiian", "More than Race"),
+  numerical_value = c(1, 2, 3, 4, 5, 6)
+)
+
+# Education Lookup Table
+education_table <- data.frame(
+  education_category = c("8th Grade or Less", "9-12th Grade w/out Diploma", "High School Graduate", "Some College Credits", "Associate's", "Bachelor's",
+                         "Master's", "Doctorate/Professional Degree","Unknown"),
+  numerical_value = c(1, 2, 3, 4, 5, 6,7,8,9)
+)
+
 imputed_rf <- imputed_rf %>% 
   mutate(Age_Category = age_table$age_category[match(imputed_rf$mager9, 
-                                                  age_table$numerical_value)])
+                                                  age_table$numerical_value)]) %>%
+    mutate(Race_Category = race_table$race_category[match(imputed_rf$mrace6, 
+                                                  race_table$numerical_value)]) %>%
+      mutate(Educ_Category = education_table$education_category[match(imputed_rf$meduc, 
+                                                  education_table$numerical_value)])
+
 ```
 
 
@@ -159,9 +177,11 @@ set.seed(2)
 imputed_partition <- resample_partition(imputed_rf,
                                       c(train=0.6,
                                         test=0.4))
-imputed_partition$train$data
+#imputed_partition$train$data
+
 ```
 
+# Balancing the overrepresentation of the Maternal White Population 
 ```{r}
 # Subset the data frame by death and alive classes
 training <- imputed_partition$train$data
@@ -174,7 +194,10 @@ n_death <- nrow(death_cases)
 n_alive <- n_death 
 training_data <- rbind(death_cases, alive_cases)
 
+# Calculate the weights for each race
 weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.758))))))
+
+# Balancing the data based on the weights
 training_data <- training_data[sample(nrow(training_data), n_alive, replace = FALSE, prob = weights), ]
 
 # Combine the resampled data frames into a new data frame
