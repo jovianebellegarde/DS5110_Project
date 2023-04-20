@@ -21,6 +21,7 @@ library(modelr)
 library(stringr)
 library(MASS)
 library(ggplot2)
+library(caret)
 ```
 
 # --------------------------  DATA PREP  ---------------------------------------
@@ -37,8 +38,8 @@ library(ggplot2)
 # Path files for running locally
 #/Users/lesrene/Downloads/link2020usnum.csv"
 # 
-numerator_data <- fread("/Users/lesrene/Downloads/link2020usnum.csv", 
-                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 
+numerator_data <- fread("./link2020usnum.csv",
+                      select=c('brthwgt','dob_tt', 'bfacil','pwgt_r',
                                'wtgain', 'dob_yy', 'dob_mm',
                                'dob_wk', 'sex')) %>% arrange(desc(brthwgt))
 numerator_data <- data.frame(numerator_data)
@@ -65,7 +66,7 @@ numerator_data <- distinct(numerator_data)
 ```{r}
 # Build dataset from Denominator File
 #/Users/lesrene/Downloads/link2020usden.csv
-denom_data <- fread("/Users/lesrene/Downloads/link2020usden.csv",
+denom_data <- fread("./link2020usden.csv",
                     select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain',
                              'mrace6','ilive','meduc','bfacil3','rf_pdiab',
                              'rf_gdiab','rf_phype','rf_ghype','rf_ehype',
@@ -197,20 +198,54 @@ training_data <- rbind(death_cases, alive_cases)
 # weights are based on 2020 demographic percentages (else is based on mean of these percents)
 weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.17))))))
 # Balancing the data based on the weights
-training_data <- training_data[sample(nrow(training_data), n_alive, replace = FALSE, prob = weights), ]
+training_data <- training_data[sample(nrow(training_data), n_alive, replace = FALSE, prob = weights), ] 
+training_data <- mutate(training_data, mrace6 = as.factor(mrace6), ilive = as.factor(ilive), meduc = as.factor(meduc), bfacil3 = as.factor(bfacil3),
+                        no_risks = as.factor(no_risks), mager9 = as.factor(mager9), 
+                        mortality_status = as.factor(mortality_status), risk_level_cat = as.factor(risk_level_cat))
+
 # Combine the resampled data frames into a new data frame
 head(training_data)
 ```
 
+
+```{r}
+# default_glm_mod = train(
+#   form = default ~ .,
+#   data = default_trn,
+#   trControl = trainControl(method = "cv", number = 5),
+#   method = "glm",
+#   family = "binomial"
+# )
+# 
+
+default_glm_mod = train(
+  form = mortality_status ~ mrace6 + risk_level_cat + meduc + mager9,
+  data = training_data,
+  trControl = trainControl(method = "cv", number = 5),
+  method = "glm",
+  family = "binomial"
+)
+
+default_glm_mod
+```
+
+
+
 # Cross-Validation
 ```{r}
+# set.seed(3)
+# 
+# diamonds_train <- diamonds10k[-diamonds_part$test$idx,]
+# 
+# diamonds_cv <- crossv_kfold(diamonds_train, 5)
+# 
+# diamonds_cv
+
 set.seed(3)
 
-diamonds_train <- diamonds10k[-diamonds_part$test$idx,]
+mortality_cv <- crossv_kfold(training_data, 5)
 
-diamonds_cv <- crossv_kfold(diamonds_train, 5)
-
-diamonds_cv
+mortality_cv
 ```
 
 
