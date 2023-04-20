@@ -34,12 +34,10 @@ library(ggplot2)
   # Generate unique key from birthweight, DOB time, facility type, 
   #      pre-pregnancy weight, weight gain, DOB Year, DOB Month, DOB Week 
   # Remove duplicate keys 
-
 # Path files for running locally
 #/Users/lesrene/Downloads/link2020usnum.csv"
 # 
-
-numerator_data <- fread("./link2020usnum.csv", 
+numerator_data <- fread("/Users/lesrene/Downloads/link2020usnum.csv", 
                       select=c('brthwgt','dob_tt', 'bfacil','pwgt_r', 
                                'wtgain', 'dob_yy', 'dob_mm',
                                'dob_wk', 'sex')) %>% arrange(desc(brthwgt))
@@ -67,7 +65,7 @@ numerator_data <- distinct(numerator_data)
 ```{r}
 # Build dataset from Denominator File
 #/Users/lesrene/Downloads/link2020usden.csv
-denom_data <- fread("./link2020usden.csv",
+denom_data <- fread("/Users/lesrene/Downloads/link2020usden.csv",
                     select=c('brthwgt','dob_tt','bfacil','pwgt_r','wtgain',
                              'mrace6','ilive','meduc','bfacil3','rf_pdiab',
                              'rf_gdiab','rf_phype','rf_ghype','rf_ehype',
@@ -92,7 +90,6 @@ denom_data <- denom_data %>% mutate(key = paste(denom_data$brthwgt,
                                             denom_data$dob_wk,
                                             denom_data$sex,
                                             sep = '-'))
-
 denom_data <- distinct(denom_data)
 # Creating the mortality indicator column 
 # create a new column in the births dataframe to indicate mortality status
@@ -107,7 +104,6 @@ merged_df$mortality_status[!is.na(merged_df$brthwgt.y)] <- 1
 ```{r}
 # Removing columns that created the key
 births <- merged_df %>% dplyr::select(-ends_with(".x"), -ends_with(".y"))
-
 # Tidying:
 # Convert the Y/N in risk columns to 0 and 1's
 # Sum up all the risk factor columns to calculate maternal health risk score
@@ -130,11 +126,9 @@ imputed_rf <- births %>%
                                    ifelse(sumrf %in% 6:10, "High", NA))))
   
 #imputed_rf <- births %>%
-
 # Data Clean up to remove some columns that are not needed
 imputed_rf <- imputed_rf %>% dplyr::select(-starts_with("rf_"))
 tibble(imputed_rf)
-
 ```
 
 Adding Categorical Columns Associated with our variables 
@@ -144,20 +138,17 @@ age_table <- data.frame(
   age_category = c("< 15", "15-19", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54"),
   numerical_value = c(1, 2, 3, 4, 5, 6, 7, 8, 9)
 )
-
 # Race Lookup Table
 race_table <- data.frame(
   race_category = c("White", "Black", "American Indian/Alaskan", "Asian", "Native Hawaiian", "More than Race"),
   numerical_value = c(1, 2, 3, 4, 5, 6)
 )
-
 # Education Lookup Table
 education_table <- data.frame(
   education_category = c("(1) 8th Grade or Less", "(2) 9-12th Grade w/out Diploma", "(3) High School Graduate", "(4) Some College Credits", "(5) Associate's", "(6) Bachelor's",
                          "(7) Master's", "(8) Doctorate/Professional Degree","(9) Unknown"),
   numerical_value = c(1, 2, 3, 4, 5, 6,7,8,9)
 )
-
 imputed_rf <- imputed_rf %>% 
   mutate(Age_Category = age_table$age_category[match(imputed_rf$mager9, 
                                                   age_table$numerical_value)]) %>%
@@ -165,7 +156,6 @@ imputed_rf <- imputed_rf %>%
                                                   race_table$numerical_value)]) %>%
       mutate(Educ_Category = education_table$education_category[match(imputed_rf$meduc, 
                                                   education_table$numerical_value)])
-
 ```
 
 
@@ -173,12 +163,10 @@ imputed_rf <- imputed_rf %>%
 # ------------------------  DATA PARTIITIONING & OVERSAMPLING ------------------
 ```{r}
 set.seed(2)
-
 imputed_partition <- resample_partition(imputed_rf,
                                       c(train=0.6,
                                         test=0.4))
 #imputed_partition$train$data
-
 ```
 
 # Balancing the overrepresentation of the Maternal White Population 
@@ -193,13 +181,11 @@ n_death <- nrow(death_cases)
 # Sample n_alive cases from the majority class 
 n_alive <- n_death 
 training_data <- rbind(death_cases, alive_cases)
-
 # Calculate the weights for each race
-weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.758))))))
-
+# weights are based on 2020 demographic percentages (else is based on mean of these percents)
+weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.17))))))
 # Balancing the data based on the weights
 training_data <- training_data[sample(nrow(training_data), n_alive, replace = FALSE, prob = weights), ]
-
 # Combine the resampled data frames into a new data frame
 head(training_data)
 ```
@@ -223,7 +209,6 @@ ggplot(training_data, aes(x=Age_Category)) +
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Age")
-
 ```
 
 # Distribution of Health Risk Level
@@ -248,8 +233,8 @@ ggplot(training_data, aes(x=Educ_Category)) +
 ggplot(training_data, aes(x=Age_Category, fill=Race_Category)) + 
   geom_bar(position = "dodge")+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Distribution of Education")
- # facet_grid(~ Race_Category)
+  labs(title="Distribution of Education") 
+  #facet_grid(~ Race_Category)
 ```
 
 
@@ -322,6 +307,7 @@ summary(model)
 ```{r}
 data_race <- imputed_rf
 data_race$mrace6 <- 1
+data_race
 fitted_probs <- predict(model, newdata = data_race, type = "response")
 sim_outcome_1 <- rbinom(n = nrow(data_race), size = 1, prob = fitted_probs)
 data_race$mrace6 <- 2
@@ -332,14 +318,15 @@ p_val <- t.test(sim_outcome_2, sim_outcome_1)$p.value
 p_val
 ```
 
+
 ```{r}
 # set up the range of values to vary
 #race_values <- unique(imputed_rf$mrace6)
-race_values <- seq(from = 1, to = 6, by = 1)
+race_values <- seq(from = 2, to = 6, by = 1)
 # create function to simulate outcome data based on varying maternal race values
 # got this function w/ help from chatgpt
 sim_outcome <- function(data, maternal_race) {
-  data$maternal_race <- maternal_race
+  data$maternal_race <- ifelse(data$mrace6 == maternal_race, 0, 1)
   fitted_probs <- predict(model, newdata = data, type = "response")
   sim_outcome <- rbinom(n = nrow(data), size = 1, prob = fitted_probs)
   return(sim_outcome)
@@ -349,7 +336,7 @@ sim_data <- lapply(race_values, function(mr) sim_outcome(data_race, mr))
 sim_data <- do.call(cbind, sim_data)
 # calculate odds ratios for each simulated dataset
 odds_ratios <- apply(sim_data, 2, function(x) {
-  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = imputed_rf, family = binomial)
+  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = imputed_rf_oversampled, family = binomial)
   exp(coef(model_sim)["mrace6"])
 })
 odds_ratios
@@ -362,21 +349,13 @@ plot(race_values, odds_ratios, type = "l", xlab = "Maternal Race", ylab = "Odds 
 
 
 ```{r}
-# create empty vectors to store odds ratios and p-values for each race group
-p_values <- c(0, 0, 0, 0, 0, 0)
-# loop through each maternal race group
-for(i in 1:length(race_values)) {
-  
-  # calculate p-value for current race group
-  model_race <- glm(mortality_status ~ mrace6 + mager9 + meduc, data = imputed_rf, family = binomial)
-  p_value_i <- summary(model_race)$coef[2,4]
-  
-  # store results for current race group in vectors
-  odds_ratios[i] <- median(odds_ratios_i)
-  p_values[i] <- p_value_i
-}
-```
+p_values <- apply(sim_data, 2, function(x) {
+  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = imputed_rf_oversampled, family = binomial)
+  summary(model_race)$coef[2,4]
+})
+p_values
 
+```
 
 ```{r}
 p_values
@@ -384,7 +363,6 @@ p_values
 barplot(p_values, names.arg = race_values, ylab = "p-value")
 abline(h = 0.05, lty = 2)
 ```
-
 
 
 ```{r}
@@ -446,18 +424,13 @@ head(us_states)
 p <- ggplot(data = us_states,
             mapping = aes(x = long, y = lat,
                           group = group))
-
 p + geom_polygon(fill = "white", color = "black")
 ```
 ```{r}
 p0 <- ggplot(data = us_states_elec,
              mapping = aes(x = long, y = lat, group = group, fill = d_points))
-
 p1 <- p0 + geom_polygon(color = "gray90", size = 0.1) +
     coord_map(projection = "albers", lat0 = 39, lat1 = 45) 
-
 p2 <- p1 + scale_fill_gradient2() + labs(title = "Winning margins") 
 p2 + theme_map() + labs(fill = "Percent")
 ```
-
-
