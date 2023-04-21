@@ -227,7 +227,7 @@ ggplot(as.data.frame(freq_table), aes(x = Age, y = Risk_Level, fill = Freq)) +
 
 
 
-# ------------------------  DATA PARTIITIONING ---------------------------------
+# ------------------------  DATA PARTITIONING ---------------------------------
 
 # Partitioning the data (training, testing)
 ```{r}
