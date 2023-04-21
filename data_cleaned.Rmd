@@ -31,7 +31,7 @@ library(viridis)
 ```{r}
 # Tidy Process
   # Read in the data
-  # Arrange birthweight in desc order
+  # Arrange birthweight in desc 
   # Replace all 9999 values in birthweight and DOB Time with NAs and omit
   # Generate unique key from birthweight, DOB time, facility type, 
   #      pre-pregnancy weight, weight gain, DOB Year, DOB Month, DOB Week 
