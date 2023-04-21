@@ -160,136 +160,13 @@ imputed_rf <- imputed_rf %>%
                                                   education_table$numerical_value)])
 ```
 
-1. Split the data into a training set and a testing set.
-2. Use oversampling techniques (such as SMOTE) on the training set to address any class imbalance issues.
-3. Use cross-validation (such as k-fold cross-validation) on the oversampled training set to build and tune the model. This involves iterating through different hyperparameters and/or subsets of variables to find the best model.
-4. Use the final selected model to make predictions on the testing set.
-5. Evaluate the performance of the model on the testing set using appropriate metrics (such as accuracy, precision, recall, F1 score, ROC curve, AUC, etc.).
-6. Refit the model on the full original dataset (including the oversampled data), using the final selected hyperparameters and variables. This final model can then be used for making predictions on new, unseen data.
-
-# ------------------------  DATA PARTIITIONING & OVERSAMPLING ------------------
-
-# Partitioning the data (training, testing)
-```{r}
-set.seed(2)
-imputed_partition <- resample_partition(imputed_rf,
-                                      c(train=0.6,
-                                        test=0.4))
-#imputed_partition$train$data
-```
-
-
-# Oversampling: Balancing the Births and Deaths
-```{r}
-# Subset the data frame by death and alive classes
-training <- imputed_partition$train$data
-death_cases <- imputed_rf[training$mortality_status == 1, ]
-death_cases
-alive_cases <- imputed_rf[training$mortality_status == 0, ]
-# Compute the number of cases in the minority class
-n_death <- nrow(death_cases)
-# Sample n_alive cases from the majority class 
-n_alive <- n_death 
-training_data <- rbind(death_cases, alive_cases)
-```
-
-# Oversampling: Balancing the overrepresentation of the Maternal White Population
-```{r}
-# Calculate the weights for each race
-# weights are based on 2020 demographic percentages (else is based on mean of these percents)
-weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.17))))))
-# Balancing the data based on the weights
-training_data <- training_data[sample(nrow(training_data), n_alive, replace = FALSE, prob = weights), ] 
-training_data <- mutate(training_data, mrace6 = as.factor(mrace6), ilive = as.factor(ilive), meduc = as.factor(meduc), bfacil3 = as.factor(bfacil3),
-                        no_risks = as.factor(no_risks), mager9 = as.factor(mager9), 
-                        mortality_status = as.factor(mortality_status), risk_level_cat = as.factor(risk_level_cat))
-
-# Combine the resampled data frames into a new data frame
-head(training_data)
-```
-
-# Testing the train/control -- DRAFT
-```{r}
-# default_glm_mod = train(
-#   form = default ~ .,
-#   data = default_trn,
-#   trControl = trainControl(method = "cv", number = 5),
-#   method = "glm",
-#   family = "binomial"
-# )
-# 
-
-# testing only factor variables
-test_training <- training_data %>% dplyr::select(-c(ilive, key, sumrf,risk_level,Age_Category,Race_Category,Educ_Category))
-
-# Test 1
-default_glm_mod = train(
-  form = mortality_status ~ mrace6 + risk_level_cat + meduc + mager9,
-  data = test_training,
-  trControl = trainControl(method = "cv", number = 5),
-  method = "glm",
-  family = "binomial"
-)
-
-default_glm_mod
-
-# Test 2
-default_glm_mod2 = train(
-  form = mortality_status ~ mrace6 + risk_level_cat,
-  data = test_training,
-  trControl = trainControl(method = "cv", number = 5),
-  method = "glm",
-  family = "binomial"
-)
-
-default_glm_mod2
-
-
-# Test 3
-default_glm_mod3 = train(
-  form = mortality_status ~ mrace6,
-  data = test_training,
-  trControl = trainControl(method = "cv", number = 5),
-  method = "glm",
-  family = "binomial"
-)
-
-default_glm_mod3
-
-default_glm_mod4 <- train(mortality_status ~ mrace6 , data=test_training,
-              method="glm", family=binomial(link="logit"),
-              trControl=trainControl(method="none",
-                                     sampling="up"),
-              na.action=na.pass)
-
-default_glm_mod4
-```
-
-
-
-# Cross-Validation
-```{r}
-# set.seed(3)
-# 
-# diamonds_train <- diamonds10k[-diamonds_part$test$idx,]
-# 
-# diamonds_cv <- crossv_kfold(diamonds_train, 5)
-# 
-# diamonds_cv
-
-set.seed(3)
-
-mortality_cv <- crossv_kfold(training_data, 5)
-
-mortality_cv
-```
 
 # --------------------------  EDA  ---------------------------------------------
 
 # Distribution of Race
   ## Notes: Race is more evenly distributed after oversampling
 ```{r}
-ggplot(training_data, aes(x=Race_Category)) + 
+ggplot(imputed_rf, aes(x=Race_Category)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Race")
@@ -298,7 +175,7 @@ ggplot(training_data, aes(x=Race_Category)) +
 # Distribution of Age 
   ## Notes: Race is more evenly distributed after oversampling
 ```{r}
-ggplot(training_data, aes(x=Age_Category)) + 
+ggplot(imputed_rf, aes(x=Age_Category)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Age")
@@ -306,7 +183,7 @@ ggplot(training_data, aes(x=Age_Category)) +
 
 # Distribution of Health Risk Level
 ```{r}
-ggplot(training_data, aes(x=risk_level)) + 
+ggplot(imputed_rf, aes(x=risk_level)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Health Risk Level")
@@ -314,7 +191,7 @@ ggplot(training_data, aes(x=risk_level)) +
 
 # Distribution of Education
 ```{r}
-ggplot(training_data, aes(x=Educ_Category)) + 
+ggplot(imputed_rf, aes(x=Educ_Category)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Education")
@@ -323,7 +200,7 @@ ggplot(training_data, aes(x=Educ_Category)) +
 # Evaluating Relationships between variables
 
 ```{r}
-ggplot(training_data, aes(x=Age_Category, fill=Race_Category)) + 
+ggplot(imputed_rf, aes(x=Age_Category, fill=Race_Category)) + 
   geom_bar(position = "stack")+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Education") 
@@ -341,17 +218,29 @@ ggplot(as.data.frame(freq_table), aes(x = Age, y = Risk_Level, fill = Freq)) +
        x = "Age", y = "Risk Level", fill = "Count")
 ```
 
-# --------------------------  DATA MODELING  -----------------------------------
+# ------------------------  DATA PARTIITIONING ---------------------------------
+
+# Partitioning the data (training, testing)
+```{r}
+set.seed(2)
+imputed_partition <- resample_partition(imputed_rf,
+                                      c(train=0.6,
+                                        test=0.4))
+```
+
+
+## PART A
+# --------------------------  STATISTICAL INFERENCE  ---------------------------
 
 # Testing the AIC stepwise approach
 ```{r}
 #training_data
 # Use step AIC to select the best number of variables to include in the model based on AIC
-model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = training_data, family = binomial(link = "logit")), 
+model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = imputed_partition$train, family = binomial(link = "logit")), 
                               direction = "forward", 
-                              scope = formula(~ mrace6 + risk_level_cat + meduc + mager9), 
+                              scope = formula(~ mrace6 + risk_level_cat + meduc + mager9, bfacil), 
                               trace = FALSE, 
-                              k = log(nrow(training_data)))
+                              k = log(nrow(imputed_partition$train)))
 # Print the selected model
 summary(model_stepwise_AIC)
 model_stepwise_AIC
@@ -378,11 +267,53 @@ anova(reduced_model, full_model, test = "Chi")
 ```
 
 
+## PART B
+# --------------------------  CLASSIFICIATION/PREDICTION  ----------------------
+
+
+
+# --------------------------  SAMPLING  ----------------------------------------
+# Undersampling: Balancing the Births and Deaths
+```{r}
+# Subset the data frame by death and alive classes
+training <- imputed_partition$train$data
+death_cases <- imputed_rf[training$mortality_status == 1, ]
+death_cases
+alive_cases <- imputed_rf[training$mortality_status == 0, ]
+# Compute the number of cases in the minority class
+n_death <- nrow(death_cases)
+# Sample n_alive cases from the majority class 
+n_alive <- n_death 
+training_data <- rbind(death_cases, alive_cases)
+```
+
+# Undersampling: Balancing the overrepresentation of the Maternal White Population
+```{r}
+# Calculate the weights for each race
+# weights are based on 2020 demographic percentages (else is based on mean of these percents)
+weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.17))))))
+# Balancing the data based on the weights
+training_data <- training_data[sample(nrow(training_data), n_alive, replace = FALSE, prob = weights), ] 
+training_data <- mutate(training_data, mrace6 = as.factor(mrace6), ilive = as.factor(ilive), meduc = as.factor(meduc), bfacil3 = as.factor(bfacil3),
+                        no_risks = as.factor(no_risks), mager9 = as.factor(mager9), 
+                        mortality_status = as.factor(mortality_status), risk_level_cat = as.factor(risk_level_cat))
+
+# Combine the resampled data frames into a new data frame
+head(training_data)
+```
+
+ # WILL DO LOGISTIC REGRESSION WITH TRAINING (OVERSAMPLED)
+   # TEST SET IS NOT TO BE RESAMPLED
+   # TRAINING SET WILL BE OVERSAMPLED
+   # EVALUATION TO BE DONE WITH TEST SET
+   # CAN USE VARIABLES FROM AIC 
+
+
 # --------------------------  ACCURACY EVALUATION  -----------------------------
 
 
 
--------------------------------------------------------------------------------
+# --------------------------  SENSITIVITY ANALYSIS -----------------------------
 #STRETCH GOAL WORK 
 
 ```{r}
