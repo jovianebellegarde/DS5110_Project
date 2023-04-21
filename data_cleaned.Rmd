@@ -227,7 +227,7 @@ ggplot(as.data.frame(freq_table), aes(x = Age, y = Risk_Level, fill = Freq)) +
 
 
 
-# ------------------------  DATA PARTITIONING ---------------------------------
+# ------------------------  DATA PARTIITIONING ---------------------------------
 
 # Partitioning the data (training, testing)
 ```{r}
@@ -251,7 +251,6 @@ model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = imputed_partition
 # Print the selected model
 summary(model_stepwise_AIC)
 
-
 model_stepwise_AIC
 # Test for the effect of race on infant mortality using odds ratios
 exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
@@ -262,8 +261,8 @@ exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
   # As risk level and race increases (non-white), the likelihood of mortality_status increases (positive relationship)
   # Variables of significance: meduc (Education), risk_level_cat (Health Risk Level), mrace6 (Race), mager9 (Age)
   
--------------------------------------------------------------------------------
-# ANOVA TEST
+# --------------------------  ANOVA TEST  --------------------------------------
+
 
 ```{r}
 # Fitting the reduced model, excluding mrace6
@@ -279,201 +278,143 @@ anova(reduced_model, full_model, test = "Chi")
 ```
 
 
-## PART B
-# --------------------------  CLASSIFICIATION/PREDICTION  ----------------------
 
 
 
-# --------------------------  SAMPLING  ----------------------------------------
-# Undersampling: Balancing the Births and Deaths
-```{r}
-# Subset the data frame by death and alive classes
-training <- imputed_partition$train$data
-death_cases <- full_data_clean[training$mortality_status == 1, ]
-death_cases
-alive_cases <- full_data_clean[training$mortality_status == 0, ]
-# Compute the number of cases in the minority class
-n_death <- nrow(death_cases)
-# Sample n_alive cases from the majority class 
-n_alive <- n_death 
-training_data <- rbind(death_cases, alive_cases)
-```
-
-# Undersampling: Balancing the overrepresentation of the Maternal White Population
-```{r}
-# Calculate the weights for each race
-# weights are based on 2020 demographic percentages (else is based on mean of these percents)
-weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.17))))))
-# Balancing the data based on the weights
-training_data <- training_data[sample(nrow(training_data), n_alive, replace = FALSE, prob = weights), ] 
-training_data <- mutate(training_data, mrace6 = as.factor(mrace6), ilive = as.factor(ilive), meduc = as.factor(meduc), bfacil3 = as.factor(bfacil3),
-                        no_risks = as.factor(no_risks), mager9 = as.factor(mager9), 
-                        mortality_status = as.factor(mortality_status), risk_level_cat = as.factor(risk_level_cat))
-
-# Combine the resampled data frames into a new data frame
-head(training_data)
-```
-
- # WILL DO LOGISTIC REGRESSION WITH TRAINING (OVERSAMPLED)
-   # TEST SET IS NOT TO BE RESAMPLED
-   # TRAINING SET WILL BE OVERSAMPLED
-   # EVALUATION TO BE DONE WITH TEST SET
-   # CAN USE VARIABLES FROM AIC 
-
-
-# --------------------------  ACCURACY EVALUATION  -----------------------------
 
 
 
-# --------------------------  SENSITIVITY ANALYSIS -----------------------------
-#STRETCH GOAL WORK 
-
-```{r}
-# fit the logistic regression model
-model <- glm(mortality_status ~ mrace6 + mager9 + meduc, data = full_data_clean, family = binomial)
-summary(model)
-```
 
 
-```{r}
-# may end up needing to weight data  by race after all but luckily there's infant mortality rates documented by race in the documentation maybe we can use those to weight 
-# The infant mortality rates based on the documentation for maternal race:
-# Overall = 5.51
-# Non-Hispanic White = 4.45
-# Non-Hispanic Black = 10.6
-# Non-Hispanic American Indian or Alaska Native = 7.63
-# Non-Hispanic Asian = 3.25
-# Non-Hispanic Native Hawaiian or Other Pacific Islander = 7.68
-# Hispanic = 4.87
-```
-
-```{r}
-data_race <- full_data_clean
-data_race$mrace6 <- 1
-data_race
-fitted_probs <- predict(model, newdata = data_race, type = "response")
-sim_outcome_1 <- rbinom(n = nrow(data_race), size = 1, prob = fitted_probs)
-data_race$mrace6 <- 2
-fitted_probs <- predict(model, newdata = data_race, type = "response")
-sim_outcome_2 <- rbinom(n = nrow(data_race), size = 1, prob = fitted_probs)
-# perform t-test
-p_val <- t.test(sim_outcome_2, sim_outcome_1)$p.value
-p_val
-```
 
 
-```{r}
-# set up the range of values to vary
-#race_values <- unique(full_data_clean$mrace6)
-race_values <- seq(from = 2, to = 6, by = 1)
-# create function to simulate outcome data based on varying maternal race values
-# got this function w/ help from chatgpt
-sim_outcome <- function(data, maternal_race) {
-  data$maternal_race <- ifelse(data$mrace6 == maternal_race, 0, 1)
-  fitted_probs <- predict(model, newdata = data, type = "response")
-  sim_outcome <- rbinom(n = nrow(data), size = 1, prob = fitted_probs)
-  return(sim_outcome)
-}
-# simulate outcome data for varying maternal race values
-sim_data <- lapply(race_values, function(mr) sim_outcome(data_race, mr))
-sim_data <- do.call(cbind, sim_data)
-# calculate odds ratios for each simulated dataset
-odds_ratios <- apply(sim_data, 2, function(x) {
-  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = full_data_clean_oversampled, family = binomial)
-  exp(coef(model_sim)["mrace6"])
-})
-odds_ratios
-```
-
-```{r}
-# plot odds ratios as a function of maternal race
-plot(race_values, odds_ratios, type = "l", xlab = "Maternal Race", ylab = "Odds Ratio")
-```
 
 
-```{r}
-p_values <- apply(sim_data, 2, function(x) {
-  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = full_data_clean_oversampled, family = binomial)
-  summary(model_race)$coef[2,4]
-})
-p_values
 
-```
+<!-- ## PART B -->
+<!-- # --------------------------  CLASSIFICIATION/PREDICTION  ---------------------- -->
+<!-- # --------------------------  SAMPLING  ---------------------------------------- -->
+<!-- # Undersampling: Balancing the Births and Deaths -->
+<!-- ```{r} -->
+<!-- # Subset the data frame by death and alive classes -->
+<!-- training <- imputed_partition$train$data -->
+<!-- death_cases <- full_data_clean[training$mortality_status == 1, ] -->
+<!-- death_cases -->
+<!-- alive_cases <- full_data_clean[training$mortality_status == 0, ] -->
+<!-- # Compute the number of cases in the minority class -->
+<!-- n_death <- nrow(death_cases) -->
+<!-- # Sample n_alive cases from the majority class  -->
+<!-- n_alive <- n_death  -->
+<!-- training_data <- rbind(death_cases, alive_cases) -->
+<!-- ``` -->
 
-```{r}
-p_values
-# plot p-values for each maternal race group
-barplot(p_values, names.arg = race_values, ylab = "p-value")
-abline(h = 0.05, lty = 2)
-```
+<!-- # Undersampling: Balancing the overrepresentation of the Maternal White Population -->
+<!-- ```{r} -->
+<!-- # Calculate the weights for each race -->
+<!-- # weights are based on 2020 demographic percentages (else is based on mean of these percents) -->
+<!-- weights <- ifelse(training_data$mrace6 == 1, 1/0.758, ifelse(training_data$mrace6 == 2, 1/0.136, ifelse(training_data$mrace6 == 3, 1/0.013, ifelse(training_data$mrace6 == 4, 1/0.061, ifelse(training_data$mrace6 == 5, 1/0.003, ifelse(training_data$mrace6 == 6, 1/0.029, 1/0.17)))))) -->
+<!-- # Balancing the data based on the weights -->
+<!-- training_data <- training_data[sample(nrow(training_data), n_alive, replace = FALSE, prob = weights), ]  -->
+<!-- training_data <- mutate(training_data, mrace6 = as.factor(mrace6), ilive = as.factor(ilive), meduc = as.factor(meduc), bfacil3 = as.factor(bfacil3), -->
+<!--                         no_risks = as.factor(no_risks), mager9 = as.factor(mager9),  -->
+<!--                         mortality_status = as.factor(mortality_status), risk_level_cat = as.factor(risk_level_cat)) -->
+
+<!-- # Combine the resampled data frames into a new data frame -->
+<!-- head(training_data) -->
+<!-- ``` -->
+
+<!--  # WILL DO LOGISTIC REGRESSION WITH TRAINING (OVERSAMPLED) -->
+<!--    # TEST SET IS NOT TO BE RESAMPLED -->
+<!--    # TRAINING SET WILL BE OVERSAMPLED -->
+<!--    # EVALUATION TO BE DONE WITH TEST SET -->
+<!--    # CAN USE VARIABLES FROM AIC  -->
 
 
-```{r}
-# Visualization 
-tibble(numerator_data)
-tibble(denom_data)
-#numerator_data
-numerator_counts <- numerator_data %>%
-  select(mrace6) %>%
-  count(mrace6) %>%
-  rename(num_counts = n) %>%
-  group_by(mrace6)
-numerator_counts <- data.frame(numerator_counts)
-denom_counts <- denom_data %>%
-  select(mrace6) %>%
-  count(mrace6) %>%
-  rename(denom_counts = n) %>%
-  group_by(mrace6)
-denom_counts <- data.frame(denom_counts)
-combined_data <- cbind.data.frame(numerator_counts, denom_counts$denom_counts)%>%
-  mutate(proportion = (num_counts/denom_counts$denom_counts)*1000)
-combined_data
-```
+<!-- # --------------------------  ACCURACY EVALUATION  ----------------------------- -->
 
-```{r}
-ggplot(data, aes(fill=mrace6, y=proportion, x=mrace6)) + 
-    geom_bar(stat = "identity")+ theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Race Distribution for Trans People (Weighted & Unweighted)")
-```
 
-Does Race affect Infant Mortality Rate ?
 
-- H0: there is no relationship between Race and IMR
+<!-- # --------------------------  SENSITIVITY ANALYSIS ----------------------------- -->
+<!-- #STRETCH GOAL WORK  -->
 
-- H1: there is a relationship between Race and IMR
+<!-- ```{r} -->
+<!-- # fit the logistic regression model -->
+<!-- model <- glm(mortality_status ~ mrace6 + mager9 + meduc, data = full_data_clean, family = binomial) -->
+<!-- summary(model) -->
+<!-- ``` -->
 
-```{r}
-datatest <- data1 %>%
-  #filter(cut %in% c("Fair", "Ideal")) %>%
-  transmute(co_seqnum, co_dodyy)
-datatest <- na.omit(datatest)
-datatest
-data2$co_dodyy
-diamonds2class
-typeof(data1$co_seqnum)
-typeof(data2$co_seqnum)
-              
-g <- inner_join()
-g
-```
 
-```{r}
-library(maps)
-library(ggplot2)
-us_states <- map_data("state")
-head(us_states)
-```
-```{r}
-p <- ggplot(data = us_states,
-            mapping = aes(x = long, y = lat,
-                          group = group))
-p + geom_polygon(fill = "white", color = "black")
-```
-```{r}
-p0 <- ggplot(data = us_states_elec,
-             mapping = aes(x = long, y = lat, group = group, fill = d_points))
-p1 <- p0 + geom_polygon(color = "gray90", size = 0.1) +
-    coord_map(projection = "albers", lat0 = 39, lat1 = 45) 
-p2 <- p1 + scale_fill_gradient2() + labs(title = "Winning margins") 
-p2 + theme_map() + labs(fill = "Percent")
-```
+<!-- ```{r} -->
+<!-- # may end up needing to weight data  by race after all but luckily there's infant mortality rates documented by race in the documentation maybe we can use those to weight  -->
+<!-- # The infant mortality rates based on the documentation for maternal race: -->
+<!-- # Overall = 5.51 -->
+<!-- # Non-Hispanic White = 4.45 -->
+<!-- # Non-Hispanic Black = 10.6 -->
+<!-- # Non-Hispanic American Indian or Alaska Native = 7.63 -->
+<!-- # Non-Hispanic Asian = 3.25 -->
+<!-- # Non-Hispanic Native Hawaiian or Other Pacific Islander = 7.68 -->
+<!-- # Hispanic = 4.87 -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- data_race <- full_data_clean -->
+<!-- data_race$mrace6 <- 1 -->
+<!-- data_race -->
+<!-- fitted_probs <- predict(model, newdata = data_race, type = "response") -->
+<!-- sim_outcome_1 <- rbinom(n = nrow(data_race), size = 1, prob = fitted_probs) -->
+<!-- data_race$mrace6 <- 2 -->
+<!-- fitted_probs <- predict(model, newdata = data_race, type = "response") -->
+<!-- sim_outcome_2 <- rbinom(n = nrow(data_race), size = 1, prob = fitted_probs) -->
+<!-- # perform t-test -->
+<!-- p_val <- t.test(sim_outcome_2, sim_outcome_1)$p.value -->
+<!-- p_val -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- # set up the range of values to vary -->
+<!-- #race_values <- unique(full_data_clean$mrace6) -->
+<!-- race_values <- seq(from = 2, to = 6, by = 1) -->
+<!-- # create function to simulate outcome data based on varying maternal race values -->
+<!-- # got this function w/ help from chatgpt -->
+<!-- sim_outcome <- function(data, maternal_race) { -->
+<!--   data$maternal_race <- ifelse(data$mrace6 == maternal_race, 0, 1) -->
+<!--   fitted_probs <- predict(model, newdata = data, type = "response") -->
+<!--   sim_outcome <- rbinom(n = nrow(data), size = 1, prob = fitted_probs) -->
+<!--   return(sim_outcome) -->
+<!-- } -->
+<!-- # simulate outcome data for varying maternal race values -->
+<!-- sim_data <- lapply(race_values, function(mr) sim_outcome(data_race, mr)) -->
+<!-- sim_data <- do.call(cbind, sim_data) -->
+<!-- # calculate odds ratios for each simulated dataset -->
+<!-- odds_ratios <- apply(sim_data, 2, function(x) { -->
+<!--   model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = full_data_clean_oversampled, family = binomial) -->
+<!--   exp(coef(model_sim)["mrace6"]) -->
+<!-- }) -->
+<!-- odds_ratios -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # plot odds ratios as a function of maternal race -->
+<!-- plot(race_values, odds_ratios, type = "l", xlab = "Maternal Race", ylab = "Odds Ratio") -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- p_values <- apply(sim_data, 2, function(x) { -->
+<!--   model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = full_data_clean_oversampled, family = binomial) -->
+<!--   summary(model_race)$coef[2,4] -->
+<!-- }) -->
+<!-- p_values -->
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- p_values -->
+<!-- # plot p-values for each maternal race group -->
+<!-- barplot(p_values, names.arg = race_values, ylab = "p-value") -->
+<!-- abline(h = 0.05, lty = 2) -->
+<!-- ``` -->
+
+
+
