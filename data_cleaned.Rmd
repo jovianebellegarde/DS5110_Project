@@ -127,9 +127,10 @@ full_data_clean <- births %>%
                             ifelse(sumrf %in% 3:5, "Medium",
                                    ifelse(sumrf %in% 6:10, "High", NA))))
   
-#full_data_clean <- births %>%
+
 # Data Clean up to remove some columns that are not needed
 full_data_clean <- full_data_clean %>% dplyr::select(-starts_with("rf_"))
+
 tibble(full_data_clean)
 ```
 
@@ -215,9 +216,10 @@ freq_table <- table(Age = full_data_clean$Age_Category, Risk_Level = full_data_c
 
 ggplot(as.data.frame(freq_table), aes(x = Age, y = Risk_Level, fill = Freq)) +
   geom_tile() +
-  scale_fill_gradient(low = "white", high = "blue") +
+  scale_fill_viridis(name = "Count") +
   labs(title = "Relationship Between Age and Health Risk Level",
-       x = "Age", y = "Risk Level", fill = "Count")
+       x = "Age", y = "Risk Level")
+
 ```
 
 
@@ -252,8 +254,11 @@ model_stepwise_AIC
 exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
 ```
 
-
-
+# Conclusions 
+  # Individuals with lower education levels and younger age may be at a higher risk of mortality.(negative relationship)
+  # As risk level and race increases (non-white), the likelihood of mortality_status increases (positive relationship)
+  # Variables of significance: meduc (Education), risk_level_cat (Health Risk Level), mrace6 (Race), mager9 (Age)
+  
 -------------------------------------------------------------------------------
 # ANOVA TEST
 
