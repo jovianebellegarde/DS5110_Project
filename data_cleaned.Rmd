@@ -111,7 +111,7 @@ births <- merged_df %>% dplyr::select(-ends_with(".x"), -ends_with(".y"))
 # Sum up all the risk factor columns to calculate maternal health risk score
 # Create risk level column and assign category
 #(No/Low, Medium, High) based on score
-imputed_rf <- births %>%
+full_data_clean <- births %>%
  mutate_at("ilive", ~str_replace(.,"N", "0")) %>%
  mutate_at("ilive", ~str_replace(.,"Y", "1")) %>%
  mutate_at(vars(contains("rf_")), ~str_replace(.,"N", "0")) %>%
@@ -127,10 +127,10 @@ imputed_rf <- births %>%
                             ifelse(sumrf %in% 3:5, "Medium",
                                    ifelse(sumrf %in% 6:10, "High", NA))))
   
-#imputed_rf <- births %>%
+#full_data_clean <- births %>%
 # Data Clean up to remove some columns that are not needed
-imputed_rf <- imputed_rf %>% dplyr::select(-starts_with("rf_"))
-tibble(imputed_rf)
+full_data_clean <- full_data_clean %>% dplyr::select(-starts_with("rf_"))
+tibble(full_data_clean)
 ```
 
 Adding Categorical Columns Associated with our variables 
@@ -151,22 +151,23 @@ education_table <- data.frame(
                          "(7) Master's", "(8) Doctorate/Professional Degree","(9) Unknown"),
   numerical_value = c(1, 2, 3, 4, 5, 6,7,8,9)
 )
-imputed_rf <- imputed_rf %>% 
-  mutate(Age_Category = age_table$age_category[match(imputed_rf$mager9, 
+full_data_clean <- full_data_clean %>% 
+  mutate(Age_Category = age_table$age_category[match(full_data_clean$mager9, 
                                                   age_table$numerical_value)]) %>%
-    mutate(Race_Category = race_table$race_category[match(imputed_rf$mrace6, 
+    mutate(Race_Category = race_table$race_category[match(full_data_clean$mrace6, 
                                                   race_table$numerical_value)]) %>%
-      mutate(Educ_Category = education_table$education_category[match(imputed_rf$meduc, 
+      mutate(Educ_Category = education_table$education_category[match(full_data_clean$meduc, 
                                                   education_table$numerical_value)])
 ```
 
 
 # --------------------------  EDA  ---------------------------------------------
 
+### Distributions
 # Distribution of Race
   ## Notes: Race is more evenly distributed after oversampling
 ```{r}
-ggplot(imputed_rf, aes(x=Race_Category)) + 
+ggplot(full_data_clean, aes(x=Race_Category)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Race")
@@ -175,7 +176,7 @@ ggplot(imputed_rf, aes(x=Race_Category)) +
 # Distribution of Age 
   ## Notes: Race is more evenly distributed after oversampling
 ```{r}
-ggplot(imputed_rf, aes(x=Age_Category)) + 
+ggplot(full_data_clean, aes(x=Age_Category)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Age")
@@ -183,7 +184,7 @@ ggplot(imputed_rf, aes(x=Age_Category)) +
 
 # Distribution of Health Risk Level
 ```{r}
-ggplot(imputed_rf, aes(x=risk_level)) + 
+ggplot(full_data_clean, aes(x=risk_level)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Health Risk Level")
@@ -191,25 +192,26 @@ ggplot(imputed_rf, aes(x=risk_level)) +
 
 # Distribution of Education
 ```{r}
-ggplot(imputed_rf, aes(x=Educ_Category)) + 
+ggplot(full_data_clean, aes(x=Educ_Category)) + 
   geom_bar()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Distribution of Education")
 ```
 
-# Evaluating Relationships between variables
+### Evaluating Relationships between variables
 
+# Relationship between Age and Race
 ```{r}
-ggplot(imputed_rf, aes(x=Age_Category, fill=Race_Category)) + 
+ggplot(full_data_clean, aes(x=Age_Category, fill=Race_Category)) + 
   geom_bar(position = "stack")+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Distribution of Education") 
+  labs(title="Relationship between Age and Race") 
   #facet_grid(~ Race_Category)
 ```
 
-# Age and Risk Level HeatMap
+# Relationship between Age and Risk Level HeatMap
 ```{r}
-freq_table <- table(Age = training_data$Age_Category, Risk_Level = training_data$risk_level_cat)
+freq_table <- table(Age = full_data_clean$Age_Category, Risk_Level = full_data_clean$risk_level_cat)
 
 ggplot(as.data.frame(freq_table), aes(x = Age, y = Risk_Level, fill = Freq)) +
   geom_tile() +
@@ -218,12 +220,14 @@ ggplot(as.data.frame(freq_table), aes(x = Age, y = Risk_Level, fill = Freq)) +
        x = "Age", y = "Risk Level", fill = "Count")
 ```
 
+
+
 # ------------------------  DATA PARTIITIONING ---------------------------------
 
 # Partitioning the data (training, testing)
 ```{r}
 set.seed(2)
-imputed_partition <- resample_partition(imputed_rf,
+imputed_partition <- resample_partition(full_data_clean,
                                       c(train=0.6,
                                         test=0.4))
 ```
@@ -234,15 +238,15 @@ imputed_partition <- resample_partition(imputed_rf,
 
 # Testing the AIC stepwise approach
 ```{r}
-#training_data
 # Use step AIC to select the best number of variables to include in the model based on AIC
 model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = imputed_partition$train, family = binomial(link = "logit")), 
                               direction = "forward", 
                               scope = formula(~ mrace6 + risk_level_cat + meduc + mager9, bfacil), 
-                              trace = FALSE, 
-                              k = log(nrow(imputed_partition$train)))
+                              trace = FALSE)
 # Print the selected model
 summary(model_stepwise_AIC)
+
+
 model_stepwise_AIC
 # Test for the effect of race on infant mortality using odds ratios
 exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
@@ -257,11 +261,11 @@ exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
 # Fitting the reduced model, excluding mrace6
 reduced_model <- glm(mortality_status ~ meduc + mager9 + risk_level_cat, 
                      family = binomial(link = "logit"), 
-                     data = imputed_rf)
+                     data = imputed_partition$train)
 # Fitting the full model with all predictor variables
 full_model <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat, 
                   family = binomial(link = "logit"), 
-                  data = imputed_rf)
+                  data = imputed_partition$train)
 # Compare the two models using ANOVA
 anova(reduced_model, full_model, test = "Chi")
 ```
@@ -277,9 +281,9 @@ anova(reduced_model, full_model, test = "Chi")
 ```{r}
 # Subset the data frame by death and alive classes
 training <- imputed_partition$train$data
-death_cases <- imputed_rf[training$mortality_status == 1, ]
+death_cases <- full_data_clean[training$mortality_status == 1, ]
 death_cases
-alive_cases <- imputed_rf[training$mortality_status == 0, ]
+alive_cases <- full_data_clean[training$mortality_status == 0, ]
 # Compute the number of cases in the minority class
 n_death <- nrow(death_cases)
 # Sample n_alive cases from the majority class 
@@ -318,7 +322,7 @@ head(training_data)
 
 ```{r}
 # fit the logistic regression model
-model <- glm(mortality_status ~ mrace6 + mager9 + meduc, data = imputed_rf, family = binomial)
+model <- glm(mortality_status ~ mrace6 + mager9 + meduc, data = full_data_clean, family = binomial)
 summary(model)
 ```
 
@@ -336,7 +340,7 @@ summary(model)
 ```
 
 ```{r}
-data_race <- imputed_rf
+data_race <- full_data_clean
 data_race$mrace6 <- 1
 data_race
 fitted_probs <- predict(model, newdata = data_race, type = "response")
@@ -352,7 +356,7 @@ p_val
 
 ```{r}
 # set up the range of values to vary
-#race_values <- unique(imputed_rf$mrace6)
+#race_values <- unique(full_data_clean$mrace6)
 race_values <- seq(from = 2, to = 6, by = 1)
 # create function to simulate outcome data based on varying maternal race values
 # got this function w/ help from chatgpt
@@ -367,7 +371,7 @@ sim_data <- lapply(race_values, function(mr) sim_outcome(data_race, mr))
 sim_data <- do.call(cbind, sim_data)
 # calculate odds ratios for each simulated dataset
 odds_ratios <- apply(sim_data, 2, function(x) {
-  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = imputed_rf_oversampled, family = binomial)
+  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = full_data_clean_oversampled, family = binomial)
   exp(coef(model_sim)["mrace6"])
 })
 odds_ratios
@@ -381,7 +385,7 @@ plot(race_values, odds_ratios, type = "l", xlab = "Maternal Race", ylab = "Odds 
 
 ```{r}
 p_values <- apply(sim_data, 2, function(x) {
-  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = imputed_rf_oversampled, family = binomial)
+  model_sim <- glm(x ~ mrace6 + mager9 + meduc, data = full_data_clean_oversampled, family = binomial)
   summary(model_race)$coef[2,4]
 })
 p_values
