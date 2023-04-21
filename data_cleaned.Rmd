@@ -166,38 +166,41 @@ full_data_clean <- full_data_clean %>%
 
 ### Distributions
 # Distribution of Race
-  ## Notes: Race is more evenly distributed after oversampling
 ```{r}
-ggplot(full_data_clean, aes(x=Race_Category)) + 
-  geom_bar()+ 
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Distribution of Race")
+ggplot(full_data_clean, aes(x = Race_Category, fill = Race_Category)) + 
+  geom_bar() + 
+  scale_fill_discrete(name = "Race") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  labs(title = "Distribution of Race", x = "Race", y = "Count")
 ```
 
 # Distribution of Age 
-  ## Notes: Race is more evenly distributed after oversampling
 ```{r}
-ggplot(full_data_clean, aes(x=Age_Category)) + 
+ggplot(full_data_clean, aes(x=Age_Category, fill = Age_Category)) + 
   geom_bar()+ 
+  scale_fill_discrete(name = "Age Ranges") + 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Distribution of Age")
+  labs(title="Distribution of Age", x = "Age Ranges", y = "Count")
 ```
 
 # Distribution of Health Risk Level
 ```{r}
-ggplot(full_data_clean, aes(x=risk_level)) + 
+ggplot(full_data_clean, aes(x=risk_level, fill = risk_level)) + 
   geom_bar()+ 
+  scale_fill_discrete(name = "Risk Level") + 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Distribution of Health Risk Level")
+  labs(title="Distribution of Health Risk Level", x = "Risk Level", y = "Count")
 ```
 
 # Distribution of Education
 ```{r}
-ggplot(full_data_clean, aes(x=Educ_Category)) + 
+ggplot(full_data_clean, aes(x=Educ_Category, fill = Educ_Category)) + 
   geom_bar()+ 
+  scale_fill_discrete(name = "Education Level") +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  labs(title="Distribution of Education")
+  labs(title="Distribution of Maternal Education Level", x = "Education", y = "Count")
 ```
+
 
 ### Evaluating Relationships between variables
 
