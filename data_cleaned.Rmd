@@ -210,6 +210,15 @@ ggplot(full_data_clean, aes(x=Educ_Category, fill = Educ_Category)) +
   labs(title="Distribution of Maternal Education Level", x = "Education", y = "Count")
 ```
 
+# Distribution of Birth Facility
+```{r}
+ggplot(full_data_clean, aes(x=Facil_Category, fill = Facil_Category)) + 
+  geom_bar()+ 
+  scale_fill_discrete(name = "Facility of Birth") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  labs(title="Distribution of Birth Facility", x = "Facility/Location", y = "Count")
+```
+
 ### Evaluating Relationships between variables
 
 # Relationship between Age and Race
