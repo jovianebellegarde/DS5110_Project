@@ -253,7 +253,6 @@ ggplot(as.data.frame(freq_table), aes(x = Age, y = Risk_Level, fill = Freq)) +
 ```
 
 
-
 # ------------------------  DATA PARTIITIONING ---------------------------------
 
 # Partitioning the data (training, testing)
@@ -287,9 +286,9 @@ exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
   # Individuals with lower education levels and younger age may be at a higher risk of mortality.(negative relationship)
   # As risk level and race increases (non-white), the likelihood of mortality_status increases (positive relationship)
   # Variables of significance: meduc (Education), risk_level_cat (Health Risk Level), mrace6 (Race), mager9 (Age)
+  # We can infer that race, education level, age, health risk level (prior to birth) are all strong indicators on predicting infant mortality 
   
 # --------------------------  ANOVA TEST  --------------------------------------
-
 
 ```{r}
 # Fitting the reduced model, excluding mrace6
@@ -303,9 +302,25 @@ full_model <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat,
 # Compare the two models using ANOVA
 anova(reduced_model, full_model, test = "Chi")
 ```
+# Conclusions
+  # The full model (including Race variable) provides a significantly better 
+    fit than the model without it
 
 
+```{r}
+library(lmtest)
+# Fit the two nested logistic regression models
+model1 <- glm(mortality_status ~ meduc + mager9 + risk_level_cat, 
+                     family = binomial(link = "logit"), 
+                     data = imputed_partition$train)
+model2 <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat, 
+                  family = binomial(link = "logit"), 
+                  data = imputed_partition$train)
 
+# Compute the LRT test
+lrtest(model1, model2)
+
+```
 
 
 
