@@ -173,6 +173,23 @@ full_data_clean <- full_data_clean %>%
 
 # --------------------------  EDA  ---------------------------------------------
 
+# Race Proportions (unweighted)
+```{r}
+unweighted_prop <-
+  summarise(group_by(full_data_clean, Race_Category), 
+            Unweighted_Proportion= n()/nrow(full_data_clean))
+
+# Unweighted Proportions Plot
+ggplot(unweighted_prop, aes(x=Race_Category, y=Unweighted_Proportion, fill=Race_Category)) +
+  geom_bar(stat="identity") +
+  scale_fill_discrete(name = "Race") +
+  geom_hline(yintercept = 0.17, color = "red", linetype = "dashed") +
+  labs(title="Proportions by Race", x="Race", y="Proportion") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+
 ### Distributions
 # Distribution of Race
 ```{r}
@@ -219,6 +236,7 @@ ggplot(full_data_clean, aes(x=Facil_Category, fill = Facil_Category)) +
   labs(title="Distribution of Birth Facility", x = "Facility/Location", y = "Count")
 ```
 
+
 ### Evaluating Relationships between variables
 
 # Relationship between Age and Race
@@ -228,6 +246,17 @@ ggplot(full_data_clean, aes(x=Age_Category, fill=Race_Category)) +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   labs(title="Relationship between Age and Race") 
   #facet_grid(~ Race_Category)
+```
+
+# Relationship between Race and Risk Level HeatMap
+```{r}
+ggplot(full_data_clean, aes(x=Race_Category, fill= risk_level)) + 
+  geom_bar(position = "stack")+ 
+  scale_fill_discrete(name = "Risk Level") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  labs(title = "Relationship Between Race and Health Risk Level",
+       x = "Race", y = "Count")
+
 ```
 
 # Relationship between Age and Risk Level HeatMap
