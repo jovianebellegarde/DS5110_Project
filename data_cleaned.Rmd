@@ -218,8 +218,6 @@ ggplot(full_data_clean, aes(x=Educ_Category, fill = Educ_Category)) +
   labs(title="Distribution of Maternal Education Level", x = "Education", y = "Count")
 ```
 
-
-
 ### Evaluating Relationships between variables
 
 # Relationship between Age and Race
