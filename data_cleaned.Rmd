@@ -272,7 +272,7 @@ imputed_partition <- resample_partition(full_data_clean,
 # Use step AIC to select the best number of variables to include in the model based on AIC
 model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = imputed_partition$train, family = binomial(link = "logit")), 
                               direction = "both", 
-                              scope = formula(~ mrace6 + risk_level_cat + meduc + mager9, bfacil), 
+                              scope = formula(~ mrace6 + risk_level_cat + meduc + mager9 + bfacil3), 
                               trace = TRUE) # add prints to all steps 
 # Print the selected model
 summary(model_stepwise_AIC)
