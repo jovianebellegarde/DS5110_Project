@@ -241,19 +241,118 @@ imputed_partition <- resample_partition(full_data_clean,
 ## PART A
 # --------------------------  STATISTICAL INFERENCE  ---------------------------
 
-# Testing the AIC stepwise approach
+# Generating model from stepAIC model
 ```{r}
 # Use step AIC to select the best number of variables to include in the model based on AIC
 model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = imputed_partition$train, family = binomial(link = "logit")), 
                               direction = "forward", 
-                              scope = formula(~ mrace6 + risk_level_cat + meduc + mager9, bfacil), 
+                              scope = formula(~ mrace6 + risk_level_cat + meduc + mager9, bfacil3), 
                               trace = FALSE)
 # Print the selected model
 summary(model_stepwise_AIC)
 
 model_stepwise_AIC
 # Test for the effect of race on infant mortality using odds ratios
-exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
+#exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
+#exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC, level = .95)))
+```
+
+# Manually builing to generate Stepwise plot
+```{r}
+step1 <- function(response, predictors, candidates, partition) {
+  
+  # Building the logistic regression
+  rhs <- paste0(paste0(predictors, collapse="+"), "+", candidates)
+  formulas <- lapply(paste0(response, "~", rhs), as.formula)
+  
+  # Fit the models and calculate AIC
+  aics <- sapply(formulas, function(fm) AIC(glm(fm, data=partition$train, family=binomial)))
+  names(aics) <- candidates
+  
+  # Set the best AIC model as attribute
+  attr(aics, "best") <- aics[which.min(aics)]
+  
+  # Return the AICs
+  aics
+}
+
+```
+
+# Empty model 
+```{r}
+model <- NULL
+```
+
+Step 1 (no variables):
+
+```{r}
+preds <- "1"
+cands <- c("mrace6", "risk_level_cat", "meduc", "mager9",
+          "bfacil3")
+s1 <- step1("mortality_status", preds, cands, imputed_partition)
+
+model <- c(model, attr(s1, "best"))
+s1
+```
+
+Step 2:
+
+```{r}
+preds <- "meduc"
+cands <- c("mrace6", "risk_level_cat", "mager9",
+          "bfacil3")
+s2 <- step1("mortality_status", preds, cands, imputed_partition)
+
+model <- c(model, attr(s2, "best"))
+s2
+```
+
+Step 3:
+
+```{r}
+preds <- c("meduc", "risk_level_cat")
+cands <- c("mrace6", "mager9",
+          "bfacil3")
+
+s3 <- step1("mortality_status", preds, cands, imputed_partition)
+
+model <- c(model, attr(s3, "best"))
+s3
+```
+
+Step 4:
+```{r}
+preds <- c("meduc", "risk_level_cat", "mrace6")
+cands <- c("mager9","bfacil3")
+
+s4 <- step1("mortality_status", preds, cands, imputed_partition)
+
+model <- c(model, attr(s4, "best"))
+s4
+```
+
+Step 5:
+```{r}
+preds <- c("meduc", "risk_level_cat", "mrace6", "mager9")
+cands <- c("bfacil3")
+
+s5 <- step1("mortality_status", preds, cands, imputed_partition)
+
+model <- c(model, attr(s5, "best"))
+s5
+```
+
+# AIC Plot
+```{r}
+step_model_aic <- tibble(index=seq_along(model),
+                     variable=factor(names(model), levels=names(model)),
+                     AIC=model)
+
+ggplot(step_model_aic, aes(y=AIC)) +
+  geom_point(aes(x=variable)) +
+  geom_line(aes(x=index)) +
+  labs(title="Stepwise Model Selection") +
+  theme_minimal()
 ```
 
 # Conclusions 
@@ -263,7 +362,7 @@ exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
   
 # --------------------------  ANOVA TEST  --------------------------------------
 
-
+# Original Anova
 ```{r}
 # Fitting the reduced model, excluding mrace6
 reduced_model <- glm(mortality_status ~ meduc + mager9 + risk_level_cat, 
@@ -276,6 +375,25 @@ full_model <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat,
 # Compare the two models using ANOVA
 anova(reduced_model, full_model, test = "Chi")
 ```
+
+# Testing model without age because of stepwise plot)
+```{r}
+# Fitting the reduced model, excluding mager9
+reduced_model_test <- glm(mortality_status ~ meduc + mrace6 + risk_level_cat, 
+                     family = binomial(link = "logit"), 
+                     data = imputed_partition$train)
+# Fitting the full model with all predictor variables
+full_model_test <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat, 
+                  family = binomial(link = "logit"), 
+                  data = imputed_partition$train)
+# Compare the two models using ANOVA
+anova(reduced_model_test, full_model_test, test = "Chi")
+```
+
+
+
+
+
 
 
 
