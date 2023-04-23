@@ -23,7 +23,6 @@ library(MASS)
 library(ggplot2)
 library(caret)
 library(viridis)
-library(forestmangr)
 library(sjPlot)
 ```
 
@@ -262,6 +261,20 @@ ggplot(as.data.frame(freq_table), aes(x = Age, y = Risk_Level, fill = Freq)) +
        x = "Age", y = "Risk Level")
 
 ```
+
+# Relationship between Race and Education Level HeatMap
+```{r}
+freq_table <- table(Race = full_data_clean$Race_Category, Education = full_data_clean$Educ_Category)
+
+ggplot(as.data.frame(freq_table), aes(x = Education, y = Race, fill = Freq)) +
+  geom_tile() +
+  scale_fill_viridis(name = "Count") +
+  labs(title = "Relationship Between Race and Education Level",
+       x = "Race", y = "Risk Level")
+
+```
+
+
 
 # Distribution of Birth Facility
 ```{r}
