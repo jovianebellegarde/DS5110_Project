@@ -24,6 +24,7 @@ library(ggplot2)
 library(caret)
 library(viridis)
 library(sjPlot)
+library(jtools)
 ```
 
 # --------------------------  DATA PREP  ---------------------------------------
