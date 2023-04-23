@@ -316,10 +316,12 @@ summary(model_stepwise_AIC)
 reduced_model <- glm(mortality_status ~ meduc + mager9 + risk_level_cat, 
                      family = binomial(link = "logit"), 
                      data = full_data_clean)
+
 # Fitting the full model with full dataset, with all predictor variables
 full_model <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat, 
                   family = binomial(link = "logit"), 
                   data = full_data_clean)
+
 # Compare the two models using ANOVA
 anova(reduced_model, full_model, test = "Chi")
 ```
