@@ -426,21 +426,21 @@ model_stats_table <- summ(model_stepwise_AIC, confint = TRUE, vifs = TRUE)
 plot_model(model_stepwise_AIC, show.values = TRUE, value.offset = .3, show.ci = TRUE, vline.color = "red", ci_method = "wald")
 ```
 
-# Meduc (education level) is negatively associated with the outcome variable. 
-  # For every unit increase in meduc, the odds of the outcome decrease by a factor of 0.89. 
-  # This suggests that individuals with higher levels of education are less likely to experience the outcome compared to those with lower levels of        education.
+# Meduc (education level) is negatively associated with mortality_status variable. 
+  # For every unit increase in meduc, the odds of infant mortality decrease by a factor of 0.89. 
+  # This suggests that individuals with higher levels of education are less likely to experience infant mortality compared to those with lower levels     of education.
 
 
-# Risk_level_cat (health risks prior to giving birth) is positively associated with the outcome variable. 
-  # Specifically, for individuals in the higher risk level category, the odds of the outcome are 1.97 times higher compared to those in the lower risk     level category.
-  # This suggests that individuals with higher levels of health risks prior to giving birth are more likely to experience the outcome compared to those     with lower levels of health risks.
+# Risk_level_cat (health risks prior to giving birth) is positively associated with mortality_status variable. 
+  # Specifically, for individuals in the higher risk level category, the odds of infant mortality are 1.97 times higher compared to those in the lower risk     level category.
+  # This suggests that individuals with higher levels of health risks prior to giving birth are more likely to experience infant mortality compared to     those with lower levels of health risks.
 
 # Mrace6 (race) has an OR of 1.08, which is very close to 1. 
-  # This suggests that race may not be strongly associated with the outcome variable in this particular model.
+  # This suggests that race may not be strongly associated with the infant mortality in this particular model.
 
-# Mager9 (age) is negatively associated with the outcome variable. 
-  # Specifically, for every unit increase in mager9, the odds of the outcome decrease by a factor of 0.96. 
-  # This suggests that older individuals are less likely to experience the outcome compared to younger individuals.
+# Mager9 (age) is negatively associated with mortality_status variable. 
+  # Specifically, for every unit increase in mager9, the odds of infant mortality decrease by a factor of 0.96. 
+  # This suggests that older individuals are less likely to experience infant mortality compared to younger individuals.
 
 <!-- ## PART B -->
 <!-- # --------------------------  CLASSIFICIATION/PREDICTION  ---------------------- -->
