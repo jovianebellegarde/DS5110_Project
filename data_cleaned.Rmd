@@ -23,7 +23,8 @@ library(MASS)
 library(ggplot2)
 library(caret)
 library(viridis)
-library(jtools)
+library(forestmangr)
+library(sjPlot)
 ```
 
 # --------------------------  DATA PREP  ---------------------------------------
@@ -290,19 +291,43 @@ imputed_partition <- resample_partition(full_data_clean,
 ```{r}
 # Use step AIC to select the best number of variables to include in the model based on AIC
 model_stepwise_AIC <- stepAIC(glm(mortality_status ~ 1, data = imputed_partition$train, family = binomial(link = "logit")), 
-                              direction = "both", 
+                              direction = "forward", 
                               scope = formula(~ mrace6 + risk_level_cat + meduc + mager9 + bfacil3), 
                               trace = FALSE) # add prints to all steps 
-# Print the selected model
-summary(model_stepwise_AIC)
 
-model_stepwise_AIC
-# Test for the effect of race on infant mortality using odds ratios
-exp(cbind(OR = coef(model_stepwise_AIC), confint(model_stepwise_AIC)))
+# Print the model's summary
+summary(model_stepwise_AIC)
+#model_stepwise_AIC
 ```
 
+# Conclusions 
+  # Individuals with lower education levels and younger age may be at a higher risk of mortality.(negative relationship)
+  # As risk level and race increases (non-white), the likelihood of mortality_status increases (positive relationship)
+  # Variables of significance: meduc (Education), risk_level_cat (Health Risk Level), mrace6 (Race), mager9 (Age)
+  # We can infer that race, education level, age, health risk level (prior to birth) are all strong indicators on predicting infant mortality 
+  
+# --------------------------  ANOVA TEST  --------------------------------------
 
-# Manually builing to generate Stepwise plot
+```{r}
+# Fitting the reduced model, excluding mrace6
+reduced_model <- glm(mortality_status ~ meduc + mager9 + risk_level_cat, 
+                     family = binomial(link = "logit"), 
+                     data = imputed_partition$train)
+# Fitting the full model with all predictor variables
+full_model <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat, 
+                  family = binomial(link = "logit"), 
+                  data = imputed_partition$train)
+# Compare the two models using ANOVA
+anova(reduced_model, full_model, test = "Chi")
+```
+# Conclusions
+  # The full model (including Race variable) provides a significantly better 
+    fit than the model without it
+
+
+# --------------------------  RESULT VISUALIZATIONS  ---------------------------
+
+# Manually builing to generate AIC Plot
 ```{r}
 step1 <- function(response, predictors, candidates, partition) {
   
@@ -390,65 +415,32 @@ ggplot(step_model_aic, aes(y=AIC)) +
   theme_minimal()
 ```
 
-# Conclusions 
-  # Individuals with lower education levels and younger age may be at a higher risk of mortality.(negative relationship)
-  # As risk level and race increases (non-white), the likelihood of mortality_status increases (positive relationship)
-  # Variables of significance: meduc (Education), risk_level_cat (Health Risk Level), mrace6 (Race), mager9 (Age)
-  # We can infer that race, education level, age, health risk level (prior to birth) are all strong indicators on predicting infant mortality 
-  
-# --------------------------  ANOVA TEST  --------------------------------------
-
-```{r}
-# Fitting the reduced model, excluding mrace6
-reduced_model <- glm(mortality_status ~ meduc + mager9 + risk_level_cat, 
-                     family = binomial(link = "logit"), 
-                     data = imputed_partition$train)
-# Fitting the full model with all predictor variables
-full_model <- glm(mortality_status ~ meduc + mrace6 + mager9 + risk_level_cat, 
-                  family = binomial(link = "logit"), 
-                  data = imputed_partition$train)
-# Compare the two models using ANOVA
-anova(reduced_model, full_model, test = "Chi")
-```
-# Conclusions
-  # The full model (including Race variable) provides a significantly better 
-    fit than the model without it
-
-
-# --------------------------  RESULT VISUALIZATIONS  ---------------------------
 
 # Summary Table
 ```{r}
 model_stats_table <- summ(model_stepwise_AIC, confint = TRUE, vifs = TRUE)
 ```
 
+# Forest Plot
+```{r}
+plot_model(model_stepwise_AIC, show.values = TRUE, value.offset = .3, show.ci = TRUE, vline.color = "red", ci_method = "wald")
+```
+
+# Meduc (education level) is negatively associated with the outcome variable. 
+  # For every unit increase in meduc, the odds of the outcome decrease by a factor of 0.89. 
+  # This suggests that individuals with higher levels of education are less likely to experience the outcome compared to those with lower levels of        education.
 
 
-# ```{r}
-# library(forestplot)
-# 
-# # create a data frame with the summary statistics
-# coef_df <- data.frame(coef(summary(model_stepwise_AIC))[, 1:2])
-# names(coef_df) <- c("odds_ratio", "95% CI")
-# 
-# # calculate the confidence intervals
-# coef_df$ci_low <- exp(coef(summary(model_stepwise_AIC))[, 1] - 1.96 * coef(summary(model_stepwise_AIC))[, 2])
-# coef_df$ci_high <- exp(coef(summary(model_stepwise_AIC))[, 1] + 1.96 * coef(summary(model_stepwise_AIC))[, 2])
-# 
-# # plot the forest plot
-# forestplot(coef_df, is.summary = c(TRUE, TRUE, rep(FALSE, nrow(coef_df) - 2)), 
-#            mean = log(coef_df$odds_ratio), lower = log(coef_df$ci_low), upper = log(coef_df$ci_high),
-#            xticks = c(0.1, 0.25, 0.5, 1, 2.5, 5, 10), col = fpColors(box = "royalblue"), 
-#            zero = 1, boxsize = 0.4, txt_gp = fpTxtGp(label = list(gpar(fontsize = 12)), 
-#            ticks = list(gpar(fontsize = 10)), title = list(gpar(fontsize = 14, fontface = "bold"))))
-# 
-# 
-# 
-# ```
+# Risk_level_cat (health risks prior to giving birth) is positively associated with the outcome variable. 
+  # Specifically, for individuals in the higher risk level category, the odds of the outcome are 1.97 times higher compared to those in the lower risk     level category.
+  # This suggests that individuals with higher levels of health risks prior to giving birth are more likely to experience the outcome compared to those     with lower levels of health risks.
 
+# Mrace6 (race) has an OR of 1.08, which is very close to 1. 
+  # This suggests that race may not be strongly associated with the outcome variable in this particular model.
 
-
-
+# Mager9 (age) is negatively associated with the outcome variable. 
+  # Specifically, for every unit increase in mager9, the odds of the outcome decrease by a factor of 0.96. 
+  # This suggests that older individuals are less likely to experience the outcome compared to younger individuals.
 
 <!-- ## PART B -->
 <!-- # --------------------------  CLASSIFICIATION/PREDICTION  ---------------------- -->
